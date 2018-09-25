@@ -1,14 +1,21 @@
 
-
 from pycalphad import Database, equilibrium, variables as v
+from scheil.build_callables import build_callables
 import numpy as np
 import collections
+
 dbf = Database('alzn_mey.tdb')
 comps = ['AL', 'ZN', 'VA']
 phases = sorted(dbf.phases.keys())
-solid_phases = sorted(set(phases)-{'LIQUID','GAS'})
-temp = 850 # K, Needs to be at or above the liquidus temperature
-initial_comp = {v.X('ZN'): 0.3}
+
+liquid_phase_name = 'LIQUID'
+initial_composition = {v.X('ZN'): 0.3}
+start_temperature = 850 # K, Needs to be at or above the liquidus temperature
+
+callables = build_callables(dbf, comps, phases)
+solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
+temp = start_temperature
+initial_comp = initial_composition
 
 x_liquid = [initial_comp]
 fraction_solid = [0.0]
@@ -17,7 +24,7 @@ temperatures = [temp]
 while fraction_solid[-1] < 1:
     conds = {v.T: temp, v.P: 101325}
     conds.update(x_liquid[-1])
-    eq = equilibrium(dbf, comps, phases, conds)
+    eq = equilibrium(dbf, comps, phases, conds, **callables)
     if 'LIQUID' not in eq.Phase.isel(T=0,P=0).values:
         break
     # TODO: Will break if there is a liquid miscibility gap
@@ -47,52 +54,4 @@ if fraction_solid[-1] < 1:
 # Compute the equilibrium solidification path
 conds = {v.T: temperatures, v.P: 101325}
 conds.update(initial_comp)
-eq = equilibrium(dbf, comps, phases, conds)
-
-
-import matplotlib.pyplot as plt
-plt.plot(temperatures, fraction_solid, label='Scheil')
-plt.plot(temperatures, 1-np.nansum(eq.where(eq.Phase=='LIQUID')['NP'].values, axis=-1).flatten(), label='EQ')
-plt.legend(loc='best')
-plt.xlabel('Temperature (K)')
-plt.ylabel('Fraction of Solid')
-
-import matplotlib.pyplot as plt
-plt.plot(temperatures, [x[v.X('ZN')] for x in x_liquid], label='Scheil')
-eq_compositions = np.nansum(eq.where(eq.Phase=='LIQUID').X.sel(component='ZN'), axis=-1).flatten()
-# Hack, since these should be completely solid
-eq_compositions[np.where(eq_compositions==0)] = np.nan
-plt.plot(temperatures, eq_compositions, label='EQ')
-plt.legend()
-plt.xlabel('Temperature (K)')
-plt.ylabel('Zn Composition of Liquid')
-
-
-from pycalphad import Database, binplot
-
-db_alzn = Database('alzn_mey.tdb')
-my_phases_alzn = ['LIQUID', 'FCC_A1', 'HCP_A3']
-fig = plt.figure(figsize=(9,6))
-binplot(db_alzn, ['AL', 'ZN', 'VA'] , my_phases_alzn, {v.X('ZN'):(0,1,0.02),
-                                                       v.T: (300, 1000, 10), v.P:101325},  ax=fig.gca())
-plt.show()
-
-
-from pycalphad import calculate
-from pycalphad.plot.utils import phase_legend
-import numpy as np
-
-legend_handles, colorlist = phase_legend(my_phases_alzn)
-
-fig = plt.figure(figsize=(9,6))
-ax = fig.gca()
-for name in my_phases_alzn:
-    result = calculate(db_alzn, ['AL', 'ZN', 'VA'], name, P=101325, T=550, output='GM')
-    ax.scatter(result.X.sel(component='ZN'), result.GM,
-               marker='.', s=5, color=colorlist[name.upper()])
-ax.set_xlim((0, 1))
-ax.legend(handles=legend_handles, loc='center left', bbox_to_anchor=(1, 0.6))
-plt.show()
-
-
-
+eq = equilibrium(dbf, comps, phases, conds, **callables)
