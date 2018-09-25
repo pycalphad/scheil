@@ -6,7 +6,7 @@ def readme(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name='pycalphad-scheil',
+    name='scheil',
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     author='Brandon Bocklund',
