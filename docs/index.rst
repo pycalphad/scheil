@@ -36,7 +36,7 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
 
 .. image:: _static/Al-30Zn_Scheil_simulation.png
     :align: center
-    :alt: Phase fraction evolution during a Scheil simulation of Al-30Zn 
+    :alt: Phase fraction evolution during a Scheil simulation of Al-30Zn
 
 Installation
 ============
@@ -69,8 +69,14 @@ scheil package, and replaces it with the package from GitHub.
 Upgrading scheil later requires you to run ``git pull`` in this directory.
 
 
-Usage
-=====
+Theory
+======
+
+Uses classic Scheil-Gulliver theory (see G.H. Gulliver, *J. Inst. Met.* 9 (1913) 120–157 and Scheil, *Zeitschrift Für Met.* 34 (1942) 70–72.) with assumptions of
+
+1. Perfect mixing in the liquid
+2. Local equilibrium between solid and liquid
+2. No diffusion in the solid
 
 
 Getting Help
