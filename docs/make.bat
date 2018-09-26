@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=pycalphad-scheil
+set SPHINXPROJ=scheil
 
 if "%1" == "" goto help
 

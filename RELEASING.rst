@@ -1,7 +1,7 @@
-Releasing pycalphad-scheil
+Releasing scheil
 ==========================
 
-When releasing a new version of pycalphad-scheil:
+When releasing a new version of scheil:
 
 1. ``git pull`` to make sure you haven't missed any last-minute commits. **After this point, nothing else is making it into this version.**
 #. Ensure that all tests pass locally on develop.
@@ -33,7 +33,7 @@ Uploading to PyPI
 Updating the conda-forge feedstock
 ----------------------------------
 
-1. Get the sha-256 hash of the tarball via ``openssl sha256 dist/scheil-0.2.tar.gz`` or at `pypi.org <https://pypi.org/project/pycalphad-scheil>`_.
-2. Fork the `conda forge pycalphad-scheil feedstock <https://github.com/conda-forge/pycalphad-scheil/>`_.
+1. Get the sha-256 hash of the tarball via ``openssl sha256 dist/scheil-0.2.tar.gz`` or at `pypi.org <https://pypi.org/project/scheil>`_.
+2. Fork the `conda forge scheil feedstock <https://github.com/conda-forge/scheil/>`_.
 3. Update the version number and hash in the recipe
 4. Open a PR and merge once the tests complete and pass
