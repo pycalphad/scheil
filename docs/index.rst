@@ -26,7 +26,7 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
 
    # plot the result
    for phase_name, amounts in sol_res.phase_amounts.items():
-    plt.plot(sol_res.temperatures, amounts, label=phase_name)
+       plt.plot(sol_res.temperatures, amounts, label=phase_name)
    plt.plot(sol_res.temperatures, sol_res.fraction_liquid, label='LIQUID')
    plt.ylabel('Phase Fraction')
    plt.xlabel('Temperature (K)')
@@ -76,7 +76,7 @@ Uses classic Scheil-Gulliver theory (see G.H. Gulliver, *J. Inst. Met.* 9 (1913)
 
 1. Perfect mixing in the liquid
 2. Local equilibrium between solid and liquid
-2. No diffusion in the solid
+3. No diffusion in the solid
 
 
 Getting Help
