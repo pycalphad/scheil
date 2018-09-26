@@ -78,11 +78,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
         for solid_phase in solid_phases:
-            if solid_phase not in eq.Phase.isel(T=0,P=0).values:
-                phase_amounts[solid_phase].append(0.0)
-            else:
-                amount = np.nansum(eq.NP.isel(T=0,P=0).where(eq.Phase == solid_phase).values)
-                phase_amounts[solid_phase].append(float(amount)*(1-current_fraction_solid))
+            amount = np.nansum(eq.NP.isel(T=0,P=0).where(eq.Phase == solid_phase).values)
+            phase_amounts[solid_phase].append(float(amount)*(1-current_fraction_solid))
 
     # take the instantaneous phase amounts and make them cumulative
     phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
