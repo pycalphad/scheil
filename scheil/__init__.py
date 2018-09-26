@@ -1,5 +1,5 @@
 """
-pycalphad-scheil
+scheil
 """
 
 from ._version import get_versions
@@ -13,3 +13,6 @@ warnings.filterwarnings('ignore', message='invalid value encountered in greater'
 warnings.filterwarnings('ignore', message='divide by zero encountered in log')
 warnings.filterwarnings('ignore', message='invalid value encountered in true_divide')
 warnings.filterwarnings('ignore', message='divide by zero encountered')
+
+from scheil.solidification_result import SolidifcationResult
+from scheil.simulate import simulate_scheil_solidification
