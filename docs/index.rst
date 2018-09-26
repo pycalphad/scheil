@@ -1,11 +1,42 @@
-================
-pycalphad-scheil
-================
+======
+scheil
+======
 
 A Scheil-Gulliver simulation tool using `pycalphad`_.
 
 .. _pycalphad: http://pycalphad.org
 
+.. code-block:: python
+
+   import matplotlib.pyplot as plt
+   from pycalphad import Database, variables as v
+   from scheil import simulate_scheil_solidification
+
+   # setup the simulation parameters
+   dbf = Database('alzn_mey.tdb')
+   comps = ['AL', 'ZN', 'VA']
+   phases = sorted(dbf.phases.keys())
+
+   liquid_phase_name = 'LIQUID'
+   initial_composition = {v.X('ZN'): 0.3}
+   start_temperature = 850
+
+   # perform the simulation
+   sol_res = simulate_scheil_solidification(dbf, comps, phases, initial_composition, start_temperature, step_temperature=1.0)
+
+   # plot the result
+   for phase_name, amounts in sol_res.phase_amounts.items():
+    plt.plot(sol_res.temperatures, amounts, label=phase_name)
+   plt.plot(sol_res.temperatures, sol_res.fraction_liquid, label='LIQUID')
+   plt.ylabel('Phase Fraction')
+   plt.xlabel('Temperature (K)')
+   plt.title('Al-30Zn Scheil simulation, phase fractions')
+   plt.legend(loc='best')
+   plt.show()
+
+.. image:: _static/Al-30Zn_Scheil_simulation.png
+    :align: center
+    :alt: Phase fraction evolution during a Scheil simulation of Al-30Zn 
 
 Installation
 ============
@@ -13,29 +44,29 @@ Installation
 Anaconda (recommended)
 ----------------------
 
-pycalphad-scheil is suggested to be installed from conda-forge.
+scheil is suggested to be installed from conda-forge.
 
 .. code-block:: bash
 
-    conda install -c pycalphad -c msys2 -c conda-forge --yes pycalphad-scheil
+    conda install -c pycalphad -c msys2 -c conda-forge --yes scheil
 
 Development versions
 --------------------
 
-To make improvements to pycalphad-scheil, it is suggested to use 
+To make improvements to scheil, it is suggested to use
 Anaconda to download all of the required dependencies. This
-method installs pycalphad-scheil with Anaconda, removes specifically the
-pycalphad-scheil package, and replaces it with the package from GitHub.
+method installs scheil with Anaconda, removes specifically the
+scheil package, and replaces it with the package from GitHub.
 
 .. code-block:: bash
 
-    git clone https://github.com/pycalphad/pycalphad-scheil.git
-    cd pycalphad-scheil
-    conda install pycalphad-scheil
-    conda remove --force pycalphad-scheil
+    git clone https://github.com/pycalphad/scheil.git
+    cd scheil
+    conda install scheil
+    conda remove --force scheil
     pip install -e .
 
-Upgrading pycalphad-scheil later requires you to run ``git pull`` in this directory.
+Upgrading scheil later requires you to run ``git pull`` in this directory.
 
 
 Usage
@@ -45,14 +76,14 @@ Usage
 Getting Help
 ============
 
-For help on installing and using pycalphad-scheil, please join the `pycalphad/pycalphad Gitter room <https://gitter.im/pycalphad/pycalphad>`_.
+For help on installing and using scheil, please join the `pycalphad/pycalphad Gitter room <https://gitter.im/pycalphad/pycalphad>`_.
 
-Bugs and software issues should be reported on `GitHub <https://github.com/pycalphad/pycalphad-scheil/issues>`_.
+Bugs and software issues should be reported on `GitHub <https://github.com/pycalphad/scheil/issues>`_.
 
 License
 =======
 
-pycalphad-scheil is MIT licensed. See LICENSE.
+scheil is MIT licensed. See LICENSE.
 
 
 
