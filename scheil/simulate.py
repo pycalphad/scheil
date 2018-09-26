@@ -7,7 +7,9 @@ import collections
 
 NAN_DICT = collections.defaultdict(lambda:np.nan)  # Dictionary that always returns NaN for any key
 
-def simulate_scheil_solidification(dbf, comps, phases, composition, start_temperature, step_temperature=1.0, liquid_phase_name='LIQUID'):
+def simulate_scheil_solidification(dbf, comps, phases, composition,
+                                   start_temperature, step_temperature=1.0,
+                                   liquid_phase_name='LIQUID'):
     """Perform a Scheil-Gulliver solidification simulation.
 
     Parameters
@@ -88,10 +90,38 @@ def simulate_scheil_solidification(dbf, comps, phases, composition, start_temper
     return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts)
 
 
-def simulate_equilibrium_solidification(dbf, comps, phases, composition, start_temperature, end_temperature, step_temperature, liquid_phase_name='LIQUID', callables=None):
+def simulate_equilibrium_solidification(dbf, comps, phases, composition,
+                                        start_temperature, end_temperature, step_temperature,
+                                        liquid_phase_name='LIQUID', callables=None):
     # Compute the equilibrium solidification path
+    solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
+    independent_comps = sorted(composition.keys())
     callables = build_callables(dbf, comps, phases)
-    conds = {v.T: np.arange(start_temperature, end_temperature, step_temperature), v.P: 101325}
+    conds = {v.T: (end_temperature, start_temperature, step_temperature), v.P: 101325}
     conds.update(composition)
     eq = equilibrium(dbf, comps, phases, conds, **callables)
-    return eq
+
+    temperatures = eq["T"].values.tolist()
+    x_liquid = []
+    fraction_solid = []
+    phase_amounts = {ph: [] for ph in solid_phases}
+    for T_idx in reversed(range(len(temperatures))):
+        curr_eq = eq.isel(T=T_idx, P=0)
+        curr_fraction_solid = 0.0
+        # calculate the phase amounts
+        for solid_phase in solid_phases:
+            amount = float(np.nansum(curr_eq.NP.where(curr_eq.Phase == solid_phase).values))
+            phase_amounts[solid_phase].append(amount)
+            curr_fraction_solid += amount
+        fraction_solid.append(curr_fraction_solid)
+
+        # liquid phase constitution
+        if 'LIQUID' in curr_eq.Phase.values:
+            # TODO: will break for liquid miscibility gap
+            liquid_vertex = sorted(np.nonzero(curr_eq.Phase.values.flat == 'LIQUID'))[0]
+            liquid_comp = {comp: float(curr_eq.X.isel(vertex=liquid_vertex).sel(component=str(comp)[2:]).values) for comp in independent_comps}
+            x_liquid.append(liquid_comp)
+        else:
+            x_liquid.append(np.nan)
+
+    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts)

@@ -15,4 +15,4 @@ warnings.filterwarnings('ignore', message='invalid value encountered in true_div
 warnings.filterwarnings('ignore', message='divide by zero encountered')
 
 from scheil.solidification_result import SolidifcationResult
-from scheil.simulate import simulate_scheil_solidification
+from scheil.simulate import simulate_scheil_solidification, simulate_equilibrium_solidification
