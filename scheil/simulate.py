@@ -37,7 +37,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     callables = build_callables(dbf, comps, phases)
     solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
     temp = start_temperature
-    independent_comps = sorted(composition.keys())
+    independent_comps = sorted(composition.keys(), key=str)
 
     x_liquid = [composition]
     fraction_solid = [0.0]
@@ -92,7 +92,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                                         liquid_phase_name='LIQUID', callables=None):
     # Compute the equilibrium solidification path
     solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
-    independent_comps = sorted(composition.keys())
+    independent_comps = sorted(composition.keys(), key=str)
     callables = build_callables(dbf, comps, phases)
     conds = {v.T: (end_temperature, start_temperature, step_temperature), v.P: 101325}
     conds.update(composition)
