@@ -18,16 +18,8 @@ setup(
     url='https://pycalphad.org/',
     install_requires=[
         'numpy',
-        'scipy',
-        'dask[complete]>=0.18',
-        'distributed',
-        'tinydb>=3',
-        'scikit-learn',
-        'emcee',
-        'pycalphad>=0.7',
-        'pyyaml',
-        'cerberus',
-        'bibtexparser'],
+        'pycalphad>=0.8',
+    ],
     extras_require={
         'dev': [
             'sphinx',
@@ -50,7 +42,7 @@ setup(
         'License :: OSI Approved :: MIT License',
 
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6'
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
 )

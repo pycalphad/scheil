@@ -1,15 +1,16 @@
 
 from pycalphad import equilibrium, variables as v
-from scheil.build_callables import build_callables
+from pycalphad.core.utils import instantiate_models
+from pycalphad.codegen.callables import build_callables
 from scheil import SolidifcationResult
 import numpy as np
-import collections
+from collections import defaultdict
 
-NAN_DICT = collections.defaultdict(lambda:np.nan)  # Dictionary that always returns NaN for any key
+NAN_DICT = defaultdict(lambda:np.nan)
 
 def simulate_scheil_solidification(dbf, comps, phases, composition,
                                    start_temperature, step_temperature=1.0,
-                                   liquid_phase_name='LIQUID'):
+                                   liquid_phase_name='LIQUID', stop=0.0001, verbose=False):
     """Perform a Scheil-Gulliver solidification simulation.
 
     Parameters
@@ -34,7 +35,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     scheil.solidification_result.SolidifcationResult
 
     """
-    callables = build_callables(dbf, comps, phases)
+    models = instantiate_models(dbf, comps, phases)
+    cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N})
     solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted(composition.keys(), key=str)
@@ -45,32 +47,47 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
     while fraction_solid[-1] < 1:
+        NS = fraction_solid[-1]
+        NL = 1 - NS
+        if NL < stop:
+            break
         conds = {v.T: temp, v.P: 101325}
         conds.update(x_liquid[-1])
-        eq = equilibrium(dbf, comps, phases, conds, **callables)
-        if 'LIQUID' not in eq.Phase.isel(T=0,P=0).values:
+        eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models)
+        eq_phases = eq["Phase"].values.squeeze()
+        if liquid_phase_name not in eq["Phase"].values.squeeze():
             break
         # TODO: Will break if there is a liquid miscibility gap
-        liquid_vertex = sorted(np.nonzero(eq.Phase.isel(T=0,P=0).values.flat == 'LIQUID'))[0]
-        liquid_comp = {comp: float(eq.X.isel(T=0,P=0,vertex=liquid_vertex).sel(component=str(comp)[2:]).values) for comp in independent_comps}
+        liquid_vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == liquid_phase_name))[0]
+        liquid_comp = {comp: float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=str(comp)[2:]).values) for comp in independent_comps}
         x_liquid.append(liquid_comp)
+        if np.nansum(eq["Phase"].values != '') == 1:
+            np_liq = np.nansum(eq.where(eq["Phase"] == liquid_phase_name).NP.values)
+            if verbose:
+                print('T: {}, NL: {:0.3f}, Liquid single phase, liquid NP {}, isclose to 1: {}, phases: {}'.format(temp, NL, np_liq, np.isclose(np_liq, 1.0, atol=2e-6), eq_phases))
+
         current_fraction_solid = float(fraction_solid[-1])
         for solid_phase in solid_phases:
-            if solid_phase not in eq.Phase.isel(T=0,P=0).values:
+            if solid_phase not in eq["Phase"].values.squeeze():
                 phase_amounts[solid_phase].append(0.0)
                 continue
-            # TODO: Will break if there is a miscibility gap
-            solid_vertex = sorted(np.nonzero(eq.Phase.isel(T=0,P=0).values.flat == solid_phase))[0]
-            solid_comp = {comp: float(eq.X.isel(T=0,P=0,vertex=solid_vertex).sel(component=str(comp)[2:]).values) for comp in independent_comps}
-            delta_comp = liquid_comp[independent_comps[0]] - solid_comp[independent_comps[0]]
-            delta_liquid_comp = x_liquid[-1][independent_comps[0]] - x_liquid[-2][independent_comps[0]]
-            delta_fraction_solid = (1-current_fraction_solid) * delta_liquid_comp / delta_comp
+            NP_eq = np.nansum(eq.where(eq["Phase"] == solid_phase)["NP"].values.squeeze())
+            np_tieline = NP_eq
+            delta_fraction_solid = (1-current_fraction_solid) * np_tieline
+            # alternate method for calculate NP based on current phase fractions
+            try:
+                assert np.isclose(NP_eq, np_tieline)
+            except:
+                print('NP_eq', NP_eq, 'NP_tieline', np_tieline, conds)
+            if verbose:
+                print('T: {}, NL: {:0.3f}, NP({})={}, phases: {}'.format(temp, NL, solid_phase, NP_eq, eq_phases))
             current_fraction_solid += delta_fraction_solid
             phase_amounts[solid_phase].append(delta_fraction_solid)
 
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
         temp -= step_temperature
+
     if fraction_solid[-1] < 1:
         x_liquid.append(NAN_DICT)
         fraction_solid.append(1.0)
@@ -78,7 +95,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
         for solid_phase in solid_phases:
-            amount = np.nansum(eq.NP.isel(T=0,P=0).where(eq.Phase == solid_phase).values)
+            amount = np.nansum(eq["NP"].isel(T=0,P=0).where(eq["Phase"] == solid_phase).values)
             phase_amounts[solid_phase].append(float(amount)*(1-current_fraction_solid))
 
     # take the instantaneous phase amounts and make them cumulative
