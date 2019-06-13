@@ -47,42 +47,45 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
     while fraction_solid[-1] < 1:
-        NS = fraction_solid[-1]
-        NL = 1 - NS
-        if NL < stop:
-            break
         conds = {v.T: temp, v.P: 101325}
         conds.update(x_liquid[-1])
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models)
         eq_phases = eq["Phase"].values.squeeze()
+        num_eq_phases = np.nansum(eq_phases != '')
         if liquid_phase_name not in eq["Phase"].values.squeeze():
-            break
+            comp_conds = {c: val for c, val in conds.items() if isinstance(c, v.X)}
+            if num_eq_phases == 0:
+                print('convergence failure: T={} and {}'.format(temp, comp_conds))
+                continue
+            else:
+                print('No liquid phase found at T={} and {} (Found {}). Stopping.'.format(temp, comp_conds, eq_phases))
+                break
         # TODO: Will break if there is a liquid miscibility gap
         liquid_vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == liquid_phase_name))[0]
         liquid_comp = {comp: float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=str(comp)[2:]).values) for comp in independent_comps}
         x_liquid.append(liquid_comp)
-        if np.nansum(eq["Phase"].values != '') == 1:
-            np_liq = np.nansum(eq.where(eq["Phase"] == liquid_phase_name).NP.values)
-            if verbose:
-                print('T: {}, NL: {:0.3f}, Liquid single phase, liquid NP {}, isclose to 1: {}, phases: {}'.format(temp, NL, np_liq, np.isclose(np_liq, 1.0, atol=2e-6), eq_phases))
-
+        np_liq = np.nansum(eq.where(eq["Phase"] == liquid_phase_name).NP.values)
         current_fraction_solid = float(fraction_solid[-1])
+        found_phase_amounts = [(liquid_phase_name, np_liq)]  # tuples of phase name, amount
         for solid_phase in solid_phases:
             if solid_phase not in eq["Phase"].values.squeeze():
                 phase_amounts[solid_phase].append(0.0)
                 continue
-            NP_eq = np.nansum(eq.where(eq["Phase"] == solid_phase)["NP"].values.squeeze())
-            np_tieline = NP_eq
+            np_tieline = np.nansum(eq.where(eq["Phase"] == solid_phase)["NP"].values.squeeze())
+            found_phase_amounts.append((solid_phase, np_tieline))
             delta_fraction_solid = (1-current_fraction_solid) * np_tieline
-            # alternate method for calculate NP based on current phase fractions
-            try:
-                assert np.isclose(NP_eq, np_tieline)
-            except:
-                print('NP_eq', NP_eq, 'NP_tieline', np_tieline, conds)
-            if verbose:
-                print('T: {}, NL: {:0.3f}, NP({})={}, phases: {}'.format(temp, NL, solid_phase, NP_eq, eq_phases))
             current_fraction_solid += delta_fraction_solid
             phase_amounts[solid_phase].append(delta_fraction_solid)
+        NL = 1-fraction_solid[-1]
+        if verbose:
+            phase_amnts = ' '.join(['NP({})={:0.3f}'.format(ph, amnt) for ph, amnt in found_phase_amounts])
+            if np_liq < 1.0e-3:
+                print('T: {}, NL: {:.2E}, {}'.format(temp, NL, phase_amnts))
+            else:
+                print('T: {}, NL: {:0.3f}, {}'.format(temp, NL, phase_amnts))
+        if NL < stop:
+            print('Liquid fraction below criterion {} . Stopping.'.format(stop))
+            break
 
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
