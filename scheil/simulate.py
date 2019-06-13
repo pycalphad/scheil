@@ -35,21 +35,20 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     scheil.solidification_result.SolidifcationResult
 
     """
-    TARGET_LIQUID_NP = 0.9  # how much liquid I want to find each iteration
-    SCALE_UP = 1.05  # How much to try to adapt the temperature step by
-    SCALE_DOWN = 1.1
+    STEP_SCALE_FACTOR = 1.1  # How much to try to adapt the temperature step by
+    MAXIMUM_STEP_SIZE_REDUCTION = 10.0
+    T_STEP_ORIG = step_temperature
     models = instantiate_models(dbf, comps, phases)
     cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N})
     solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted(composition.keys(), key=str)
-    orig_step_temperature = step_temperature
     x_liquid = [composition]
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
-    phases_seen = set()
+    phases_seen = {liquid_phase_name, ''}
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325}
         conds.update(x_liquid[-1])
@@ -58,19 +57,28 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         num_eq_phases = np.nansum(eq_phases != '')
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
-            print('New phases seen: {}. Stepping and resetting step back'.format(new_phases_seen))
+            if verbose:
+                print('New phases seen: {}. Resetting step size'.format(new_phases_seen))
             phases_seen |= new_phases_seen
             temp += step_temperature
-            step_temperature = orig_step_temperature
+            step_temperature = T_STEP_ORIG
             continue
         if liquid_phase_name not in eq["Phase"].values.squeeze():
             comp_conds = {c: val for c, val in conds.items() if isinstance(c, v.X)}
             if num_eq_phases == 0:
-                print('convergence failure: T={} and {}'.format(temp, comp_conds))
+                print('Convergence failure: T={} and {}'.format(temp, comp_conds))
                 continue
             else:
-                print('No liquid phase found at T={} and {} (Found {}). Stopping.'.format(temp, comp_conds, eq_phases))
-                break
+                if T_STEP_ORIG/step_temperature > MAXIMUM_STEP_SIZE_REDUCTION:
+                    if verbose:
+                        print('No liquid phase found at T={} and {} (Found {}). Maximum step size reduction exceeded. Stopping.'.format(temp, comp_conds, eq_phases))
+                    break
+                else:
+                    if verbose:
+                        print('No liquid phase found at T={} and {} (Found {}). Stepping back and reducing step size.'.format(temp, comp_conds, eq_phases))
+                    temp += step_temperature
+                    step_temperature /= STEP_SCALE_FACTOR
+                    continue
         # TODO: Will break if there is a liquid miscibility gap
         liquid_vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == liquid_phase_name))[0]
         liquid_comp = {comp: float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=str(comp)[2:]).values) for comp in independent_comps}
@@ -89,20 +97,16 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             phase_amounts[solid_phase].append(delta_fraction_solid)
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
-        if np_liq > 0.9:
-            step_temperature *= SCALE_UP
-        else:
-            step_temperature /= SCALE_DOWN
-
         NL = 1-fraction_solid[-1]
         if verbose:
             phase_amnts = ' '.join(['NP({})={:0.3f}'.format(ph, amnt) for ph, amnt in found_phase_amounts])
             if NL < 1.0e-3:
-                print('T={:0.3f}, ΔT={:.2E}, NL: {:.2E}, {}'.format(temp, step_temperature, NL, phase_amnts))
+                print('T={:0.3f}, ΔT={:0.3f}, NL: {:.2E}, {}'.format(temp, step_temperature, NL, phase_amnts))
             else:
-                print('T={:0.3f}, ΔT={:.2E}, NL: {:0.3f}, {}'.format(temp, step_temperature, NL, phase_amnts))
+                print('T={:0.3f}, ΔT={:0.3f}, NL: {:0.3f}, {}'.format(temp, step_temperature, NL, phase_amnts))
         if NL < stop:
-            print('Liquid fraction below criterion {} . Stopping.'.format(stop))
+            if verbose:
+                print('Liquid fraction below criterion {} . Stopping.'.format(stop))
             break
 
         temp -= step_temperature
