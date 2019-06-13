@@ -35,23 +35,34 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     scheil.solidification_result.SolidifcationResult
 
     """
+    TARGET_LIQUID_NP = 0.9  # how much liquid I want to find each iteration
+    SCALE_UP = 1.05  # How much to try to adapt the temperature step by
+    SCALE_DOWN = 1.1
     models = instantiate_models(dbf, comps, phases)
     cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N})
     solid_phases = sorted(set(phases)-{'GAS', liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted(composition.keys(), key=str)
-
+    orig_step_temperature = step_temperature
     x_liquid = [composition]
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
+    phases_seen = set()
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325}
         conds.update(x_liquid[-1])
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models)
         eq_phases = eq["Phase"].values.squeeze()
         num_eq_phases = np.nansum(eq_phases != '')
+        new_phases_seen = set(eq_phases).difference(phases_seen)
+        if len(new_phases_seen) > 0:
+            print('New phases seen: {}. Stepping and resetting step back'.format(new_phases_seen))
+            phases_seen |= new_phases_seen
+            temp += step_temperature
+            step_temperature = orig_step_temperature
+            continue
         if liquid_phase_name not in eq["Phase"].values.squeeze():
             comp_conds = {c: val for c, val in conds.items() if isinstance(c, v.X)}
             if num_eq_phases == 0:
@@ -76,19 +87,24 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             delta_fraction_solid = (1-current_fraction_solid) * np_tieline
             current_fraction_solid += delta_fraction_solid
             phase_amounts[solid_phase].append(delta_fraction_solid)
+        fraction_solid.append(current_fraction_solid)
+        temperatures.append(temp)
+        if np_liq > 0.9:
+            step_temperature *= SCALE_UP
+        else:
+            step_temperature /= SCALE_DOWN
+
         NL = 1-fraction_solid[-1]
         if verbose:
             phase_amnts = ' '.join(['NP({})={:0.3f}'.format(ph, amnt) for ph, amnt in found_phase_amounts])
-            if np_liq < 1.0e-3:
-                print('T: {}, NL: {:.2E}, {}'.format(temp, NL, phase_amnts))
+            if NL < 1.0e-3:
+                print('T={:0.3f}, ΔT={:.2E}, NL: {:.2E}, {}'.format(temp, step_temperature, NL, phase_amnts))
             else:
-                print('T: {}, NL: {:0.3f}, {}'.format(temp, NL, phase_amnts))
+                print('T={:0.3f}, ΔT={:.2E}, NL: {:0.3f}, {}'.format(temp, step_temperature, NL, phase_amnts))
         if NL < stop:
             print('Liquid fraction below criterion {} . Stopping.'.format(stop))
             break
 
-        fraction_solid.append(current_fraction_solid)
-        temperatures.append(temp)
         temp -= step_temperature
 
     if fraction_solid[-1] < 1:
