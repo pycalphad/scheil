@@ -41,14 +41,9 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
 Installation
 ============
 
-Anaconda (recommended)
-----------------------
+scheil is still in early development and is not yet released on PyPI or conda-forge.
+To use scheil, please install the development version.
 
-scheil is suggested to be installed from conda-forge.
-
-.. code-block:: bash
-
-    conda install -c pycalphad -c msys2 -c conda-forge --yes scheil
 
 Development versions
 --------------------
@@ -60,10 +55,9 @@ scheil package, and replaces it with the package from GitHub.
 
 .. code-block:: bash
 
+    conda install -c pycalphad -c conda-forge pycalphad
     git clone https://github.com/pycalphad/scheil.git
     cd scheil
-    conda install scheil
-    conda remove --force scheil
     pip install -e .
 
 Upgrading scheil later requires you to run ``git pull`` in this directory.
