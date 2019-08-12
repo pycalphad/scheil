@@ -55,7 +55,7 @@ scheil package, and replaces it with the package from GitHub.
 
 .. code-block:: bash
 
-    conda install -c pycalphad -c conda-forge pycalphad
+    conda install -c pycalphad -c conda-forge pycalphad>=0.8
     git clone https://github.com/pycalphad/scheil.git
     cd scheil
     pip install -e .
