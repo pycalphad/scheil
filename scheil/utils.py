@@ -30,14 +30,14 @@ def is_ordered(site_fracs, subl_dof, symmetric_subl_idx, **kwargs):
 
     Examples
     --------
-    >>> dbf = Database('Fe-Ni-Ti.tdb')
-    >>> subl_dof = [4, 4, 1] # sublattice model is (Fe,Ni,Ti,Va)(Fe,Ni,Ti,Va)(Va)
-    >>> symm = [[0, 1]]  # sublattices 0 and 1 should be equivalent
-    >>> res = equilibrium(dbf, ['FE', 'NI', 'TI', 'VA'], ['BCC2'], {v.P: 101325, v.T: 1200, v.N: 1, v.X('FE'): 0.001, v.X('NI'): 0.001})
-    >>> is_ordered(res.Y.isel(vertex=0).values.squeeze(), subl_dof, symm)
+    >>> dbf = Database('Fe-Ni-Ti.tdb')  # doctest: +SKIP
+    >>> subl_dof = [4, 4, 1] # sublattice model is (Fe,Ni,Ti,Va)(Fe,Ni,Ti,Va)(Va)  # doctest: +SKIP
+    >>> symm = [[0, 1]]  # sublattices 0 and 1 should be equivalent  # doctest: +SKIP
+    >>> res = equilibrium(dbf, ['FE', 'NI', 'TI', 'VA'], ['BCC2'], {v.P: 101325, v.T: 1200, v.N: 1, v.X('FE'): 0.001, v.X('NI'): 0.001})  # doctest: +SKIP
+    >>> is_ordered(res.Y.isel(vertex=0).values.squeeze(), subl_dof, symm)  # doctest: +SKIP
     False
-    >>> res = equilibrium(dbf, ['FE', 'NI', 'TI', 'VA'], ['BCC2'], {v.P: 101325, v.T: 1200, v.N: 1, v.X('FE'): 0.25, v.X('NI'): 0.25})
-    >>> is_ordered(res.Y.isel(vertex=0).values.squeeze(), subl_dof, symm)
+    >>> res = equilibrium(dbf, ['FE', 'NI', 'TI', 'VA'], ['BCC2'], {v.P: 101325, v.T: 1200, v.N: 1, v.X('FE'): 0.25, v.X('NI'): 0.25})  # doctest: +SKIP
+    >>> is_ordered(res.Y.isel(vertex=0).values.squeeze(), subl_dof, symm)  # doctest: +SKIP
     True
 
     """
