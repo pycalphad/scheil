@@ -69,3 +69,43 @@ def test_binary_A_C():
     else:
         # increase step atol a a litte, since it should have ended at the eutectic
         assert np.isclose(sol_res.temperatures[-1], 820, atol=step * 1.1)
+
+
+def test_ternary_A_B_C():
+    """Tests for the Scheil properties of the A-B-C ternary system
+
+    There is a transition point, t, where the solidification changes from the
+    eutectic monovariant to peritetic-like. Most of these tests are focused
+    around this point.
+    """
+    t_temp = 683.7  # Eutectic-like to peritectic-like transition temperature, in Kelvin
+    comp = {v.X('B'): 0.5, v.X('C'): 0.05}
+    start = 800  # Kelvin
+    step = 5.0
+
+    sol_res = simulate_scheil_solidification(DB_CHEN, ['A', 'B', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    print(f"Converged to stopping criteria: {sol_res.converged}")
+
+    phase_amnts = sol_res.phase_amounts
+    # Check that the first solid phase to form is ALPHA and occurs above t
+    idx_first_solid = np.nonzero(np.array(sol_res.fraction_solid) > 0)[0][0]
+    assert phase_amnts['ALPHA'][idx_first_solid] > 0
+    assert np.isclose(phase_amnts['BETA'][idx_first_solid], 0)
+    assert sol_res.temperatures[idx_first_solid] > t_temp
+
+    # Check that the last solid phases to form is BETA only and termintes near 600 K
+    assert np.isclose(phase_amnts['ALPHA'][-1], 0)
+    assert phase_amnts['BETA'][-1] > 0
+    if sol_res.converged:
+        # May have converged prior to the eutectic, but not below
+        assert sol_res.temperatures[-1] < 600 + step * 2 and sol_res.temperatures[-1] > 600
+    else:
+        # increase step atol a a litte, since it should have ended at the eutectic
+        assert np.isclose(sol_res.temperatures[-1], 600, atol=step * 1.1)
+
+    # Check that the eutectic-like to peritectic-like transitions (ALPHA+BETA forming to BETA forming) occurs near t
+    idx_last_alpha = np.nonzero(np.array(phase_amnts['ALPHA']) > 0)[0][-1]
+    assert np.isclose(sol_res.temperatures[idx_last_alpha], t_temp, atol=step * 1.1)
+    # Check that the compositions are resonably close as well, within 1%
+    assert np.isclose(sol_res.x_liquid[idx_last_alpha][v.X('B')], 0.583, atol=0.01)
+    assert np.isclose(sol_res.x_liquid[idx_last_alpha][v.X('C')], 0.059, atol=0.01)
