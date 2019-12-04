@@ -12,13 +12,13 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-  - conda create -q -n scheil-env python=$TRAVIS_PYTHON_VERSION
+  - conda create --yes -q -n scheil-env python=$TRAVIS_PYTHON_VERSION
   - source activate scheil-env
-  - conda install -c conda-forge 'pycalphad>=0.8.1' 'scipy' 'numpy'
+  - conda install --yes -c conda-forge 'pycalphad>=0.8.1' 'scipy' 'numpy' 'pytest'
 before_script:
   - source activate scheil-env
-  - pip install --no-deps -e '.[dev]'
+  - pip install --no-deps -e .
 script:
-  - py.test -v --doctest-modules tests
+  - pytest -v --doctest-modules tests schiel
 notifications:
   email: False
