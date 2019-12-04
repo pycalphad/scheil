@@ -3,6 +3,7 @@ import numpy as np
 from pycalphad import Database, variables as v
 from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification
 
+
 def test_scheil_solidification_result_properties():
     """Test that SolidificationResult objects produced by Scheil solidification have the required properties."""
     # Required properties are
@@ -14,7 +15,6 @@ def test_scheil_solidification_result_properties():
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
-    liquid_phase_name = 'LIQUID'
     initial_composition = {v.X('ZN'): 0.3}
     start_temperature = 850
 
@@ -33,6 +33,7 @@ def test_scheil_solidification_result_properties():
     # total of final phase amounts is 1
     assert np.isclose(np.sum([amnts[-1] for amnts in sol_res.phase_amounts.values()]), 1.0)
 
+
 def test_equilibrium_solidification_result_properties():
     """Test that SolidificationResult objects produced by equilibrium have the required properties."""
     # Required properties are that the shape of the output arrays are matching
@@ -43,15 +44,14 @@ def test_equilibrium_solidification_result_properties():
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
-    liquid_phase_name = 'LIQUID'
     initial_composition = {v.X('ZN'): 0.3}
     start_temperature = 850
     end_temperature = 650
 
     sol_res = simulate_equilibrium_solidification(dbf, comps, phases, initial_composition,
-                                            start_temperature=start_temperature,
-                                            end_temperature=end_temperature,
-                                            step_temperature=20.0)
+                                                  start_temperature=start_temperature,
+                                                  end_temperature=end_temperature,
+                                                  step_temperature=20.0)
 
     num_temperatures = len(sol_res.temperatures)
     assert num_temperatures == len(sol_res.x_liquid)
