@@ -70,6 +70,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     else:
         adaptive = False
 
+    converged = False
     phases_seen = {liquid_phase_name, ''}
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325.0, v.N: 1.0}
@@ -105,6 +106,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             if T_STEP_ORIG / step_temperature > MAXIMUM_STEP_SIZE_REDUCTION:
                 if verbose:
                     print('No liquid phase found at T={}, {} (Found {}). Maximum step size reduction exceeded. Stopping.'.format(temp, fmt_comp_conds, eq_phases))
+                converged = False
                 break
             else:
                 if verbose:
@@ -140,6 +142,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         if NL < stop:
             if verbose:
                 print('Liquid fraction below criterion {} . Stopping at fmt_comp_conds'.format(stop))
+            converged = True
             break
         if verbose:
             print()  # add line break
@@ -158,7 +161,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts)
+    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged)
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
@@ -207,4 +210,5 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         else:
             x_liquid.append(np.nan)
 
-    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts)
+    converged = np.isclose(fraction_solid[-1], 1.0)
+    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged)
