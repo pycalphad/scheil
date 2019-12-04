@@ -18,7 +18,8 @@ setup(
     url='https://pycalphad.org/',
     install_requires=[
         'numpy',
-        'pycalphad>=0.8',
+        'scipy',
+        'pycalphad>=0.8.1',
     ],
     extras_require={
         'dev': [
