@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class SolidifcationResult():
     """Short summary.
 
@@ -32,10 +33,11 @@ class SolidifcationResult():
         Cumulative phase amounts )
 
     """
+
     def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged):
         self.x_liquid = x_liquid
         self.fraction_solid = fraction_solid
-        self.fraction_liquid = (1.0-np.array(fraction_solid)).tolist()
+        self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
         self.temperatures = temperatures
         self.phase_amounts = phase_amounts
         self.cum_phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
