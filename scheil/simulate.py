@@ -158,9 +158,6 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    # take the instantaneous phase amounts and make them cumulative
-    phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
-
     return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts)
 
 
@@ -183,14 +180,21 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     temperatures = eq["T"].values.tolist()
     x_liquid = []
     fraction_solid = []
-    phase_amounts = {ph: [] for ph in solid_phases}
+    phase_amounts = {ph: [] for ph in solid_phases}  # instantaneous phase amounts
+    cum_phase_amounts = {ph: [] for ph in solid_phases}
     for T_idx in reversed(range(len(temperatures))):
         curr_eq = eq.isel(T=T_idx, P=0)
         curr_fraction_solid = 0.0
         # calculate the phase amounts
         for solid_phase in solid_phases:
             amount = float(np.nansum(curr_eq.NP.where(curr_eq.Phase == solid_phase).values))
-            phase_amounts[solid_phase].append(amount)
+            # Since the equilibrium calculations always give the "cumulative" phase amount,
+            # we need to take the difference to get the instantaneous.
+            cum_phase_amounts[solid_phase].append(amount)
+            if len(phase_amounts[solid_phase]) == 0:
+                phase_amounts[solid_phase].append(amount)
+            else:
+                phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
             curr_fraction_solid += amount
         fraction_solid.append(curr_fraction_solid)
 
