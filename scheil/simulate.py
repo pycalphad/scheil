@@ -219,7 +219,6 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     cum_phase_amounts = {ph: [] for ph in solid_phases}
     converged = False
     current_T = start_temperature
-    final_iteration = False  # "Final" iteration is after the binary search where we know the phases will be solid only
     while fraction_solid[-1] < 1 if len(fraction_solid) > 0 else True:
         conds[v.T] = current_T
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, to_xarray=False)
