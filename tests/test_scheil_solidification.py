@@ -21,10 +21,10 @@ def test_scheil_solidification_result_properties():
     sol_res = simulate_scheil_solidification(dbf, comps, phases, initial_composition, start_temperature, step_temperature=20.0, verbose=True)
 
     num_temperatures = len(sol_res.temperatures)
-    assert num_temperatures == len(sol_res.x_liquid)
     assert num_temperatures == len(sol_res.fraction_liquid)
     assert num_temperatures == len(sol_res.fraction_solid)
     assert all([num_temperatures == len(nphase) for nphase in sol_res.phase_amounts.values()])
+    assert all([num_temperatures == len(liq_comps) for liq_comps in sol_res.x_liquid.values()])
     assert all([num_temperatures == len(nphase) for nphase in sol_res.cum_phase_amounts.values()])
 
     # final phase amounts are correct
@@ -49,18 +49,16 @@ def test_equilibrium_solidification_result_properties():
 
     initial_composition = {v.X('ZN'): 0.3}
     start_temperature = 850
-    end_temperature = 650
 
     sol_res = simulate_equilibrium_solidification(dbf, comps, phases, initial_composition,
                                                   start_temperature=start_temperature,
-                                                  end_temperature=end_temperature,
                                                   step_temperature=20.0, verbose=True)
 
     num_temperatures = len(sol_res.temperatures)
-    assert num_temperatures == len(sol_res.x_liquid)
     assert num_temperatures == len(sol_res.fraction_liquid)
     assert num_temperatures == len(sol_res.fraction_solid)
     assert all([num_temperatures == len(np) for np in sol_res.phase_amounts.values()])
+    assert all([num_temperatures == len(liq_comps) for liq_comps in sol_res.x_liquid.values()])
     assert all([num_temperatures == len(nphase) for nphase in sol_res.cum_phase_amounts.values()])
     # The final cumulative solid phase amounts is 1.0
     assert np.isclose(np.sum([amnts[-1] for amnts in sol_res.cum_phase_amounts.values()]), 1.0)

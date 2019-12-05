@@ -114,5 +114,5 @@ def test_ternary_A_B_C():
     # Temperature is close to t
     assert np.isclose(sol_res.temperatures[idx_last_alpha], t_temp, atol=step * 1.1)
     # Check that the compositions are resonably close as well, within 1%
-    assert np.isclose(sol_res.x_liquid[idx_last_alpha][v.X('B')], 0.583, atol=0.01)
-    assert np.isclose(sol_res.x_liquid[idx_last_alpha][v.X('C')], 0.059, atol=0.01)
+    assert np.isclose(sol_res.x_liquid['B'][idx_last_alpha], 0.583, atol=0.01)
+    assert np.isclose(sol_res.x_liquid['C'][idx_last_alpha], 0.059, atol=0.01)

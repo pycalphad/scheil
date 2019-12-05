@@ -5,6 +5,29 @@ from scipy.stats import norm
 from pycalphad.core.utils import unpack_components, generate_dof
 
 
+def get_phase_amounts(eq, phases):
+    """Return the phase fraction for each phase in equilibrium
+
+    Parameters
+    ----------
+    eq : pycalphad.core.light_dataset.LightDataset
+        Point equilibrium calculation result
+    phases : Sequence[str]
+        Phases to get the amounts of
+
+    Returns
+    -------
+    Dict[str, float]
+
+    """
+    phase_amnts = {ph: 0.0 for ph in phases}
+    for ph_idx in range(eq.vertex.size):
+        cur_phase = str(eq.Phase[..., ph_idx].squeeze())
+        if cur_phase in phases:
+            phase_amnts[cur_phase] += float(eq.NP[..., ph_idx].squeeze())
+    return phase_amnts
+
+
 def is_ordered(site_fracs, subl_dof, symmetric_subl_idx, **kwargs):
     """Return True if the site fraction configuration is ordered
 
