@@ -223,48 +223,46 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     while fraction_solid[-1] < 1 if len(fraction_solid) > 0 else True:
         conds[v.T] = current_T
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, to_xarray=False)
-        current_eq = eq
-        if liquid_phase_name in current_eq.Phase or final_iteration:
-            # Calculate fraciton of solid and phase amounts, get liquid composition.
+        if liquid_phase_name in eq.Phase:
+            # Add the liquid phase composition
+            # TODO: will break in a liquid miscibility gap
+            liquid_vertex = np.nonzero(eq.Phase == liquid_phase_name)[-1][0]
+            liquid_comp = {comp: float(eq.X[..., liquid_vertex, eq.component.index(comp)]) for comp in independent_comps}
+            x_liquid.append(liquid_comp)
             temperatures.append(current_T)
-            current_fraction_solid = 0.0
-            current_cum_phase_amnts = get_phase_amounts(current_eq, solid_phases)
-            for solid_phase, amount in current_cum_phase_amnts.items():
-                # Since the equilibrium calculations always give the "cumulative" phase amount,
-                # we need to take the difference to get the instantaneous.
-                cum_phase_amounts[solid_phase].append(amount)
-                if len(phase_amounts[solid_phase]) == 0:
-                    phase_amounts[solid_phase].append(amount)
-                else:
-                    phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
-                current_fraction_solid += amount
-            fraction_solid.append(current_fraction_solid)
-
-            if not final_iteration:
-                # Add the liquid phase composition
-                # TODO: will break in a liquid miscibility gap
-                liquid_vertex = np.nonzero(current_eq.Phase == liquid_phase_name)[-1][0]
-                liquid_comp = {comp: float(current_eq.X[..., liquid_vertex, current_eq.component.index(comp)]) for comp in independent_comps}
-                x_liquid.append(liquid_comp)
-                current_T -= step_temperature
-            else:
-                # Set the liquid phase composition to NaN
-                liquid_comp = {comp: float(np.nan) for comp in independent_comps}
-                x_liquid.append(liquid_comp)
+            current_T -= step_temperature
         else:
             # binary search to find the solidus
             T_high = current_T + step_temperature  # High temperature, liquid
             T_low = current_T  # Low temperature, solids only
             while (T_high - T_low) > binary_search_tol:
-                bin_search_T = (T_high - T_low)*0.5 + T_low
+                bin_search_T = (T_high - T_low) * 0.5 + T_low
                 conds[v.T] = bin_search_T
                 eq = equilibrium(dbf, comps, phases, conds, callables=cbs, to_xarray=False)
                 if liquid_phase_name in eq.Phase:
                     T_high = bin_search_T
                 else:
                     T_low = bin_search_T
-            current_T = T_low
-            final_iteration = True  # perform one last iteration with the new temperature
+            conds[v.T] = T_low
+            temperatures.append(T_low)
+            eq = equilibrium(dbf, comps, phases, conds, callables=cbs, to_xarray=False)
+            # Set the liquid phase composition to NaN
+            liquid_comp = {comp: float(np.nan) for comp in independent_comps}
+            x_liquid.append(liquid_comp)
+
+        # Calculate fraction of solid and solid phase amounts
+        current_fraction_solid = 0.0
+        current_cum_phase_amnts = get_phase_amounts(eq, solid_phases)
+        for solid_phase, amount in current_cum_phase_amnts.items():
+            # Since the equilibrium calculations always give the "cumulative" phase amount,
+            # we need to take the difference to get the instantaneous.
+            cum_phase_amounts[solid_phase].append(amount)
+            if len(phase_amounts[solid_phase]) == 0:
+                phase_amounts[solid_phase].append(amount)
+            else:
+                phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
+            current_fraction_solid += amount
+        fraction_solid.append(current_fraction_solid)
 
     converged = np.isclose(fraction_solid[-1], 1.0)
     return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged)
