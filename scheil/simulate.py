@@ -1,13 +1,10 @@
 import numpy as np
-from collections import defaultdict
 from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_callables
 from pycalphad.core.utils import instantiate_models, generate_dof, \
     unpack_components
 from .solidification_result import SolidifcationResult
 from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
-
-NAN_DICT = defaultdict(lambda: np.nan)
 
 
 def simulate_scheil_solidification(dbf, comps, phases, composition,
@@ -57,8 +54,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         print('done')
     solid_phases = sorted(set(phases) - {'GAS', liquid_phase_name})
     temp = start_temperature
-    independent_comps = sorted(composition.keys(), key=str)
-    x_liquid = [composition]
+    independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
+    x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
@@ -73,9 +70,10 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
 
     converged = False
     phases_seen = {liquid_phase_name, ''}
+    liquid_comp = composition
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325.0, v.N: 1.0}
-        comp_conds = x_liquid[-1]
+        comp_conds = liquid_comp
         fmt_comp_conds = ', '.join(['{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, **eq_kwargs)
@@ -118,8 +116,11 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 continue
         # TODO: Will break if there is a liquid miscibility gap
         liquid_vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == liquid_phase_name))[0]
-        liquid_comp = {comp: float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=str(comp)[2:]).values) for comp in independent_comps}
-        x_liquid.append(liquid_comp)
+        liquid_comp = {}
+        for comp in independent_comps:
+            x = float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=comp).values)
+            x_liquid[comp].append(x)
+            liquid_comp[v.X(comp)] = x
         np_liq = np.nansum(eq.where(eq["Phase"] == liquid_phase_name).NP.values)
         current_fraction_solid = float(fraction_solid[-1])
         found_phase_amounts = [(liquid_phase_name, np_liq)]  # tuples of phase name, amount
@@ -151,7 +152,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         temp -= step_temperature
 
     if fraction_solid[-1] < 1:
-        x_liquid.append(NAN_DICT)
+        for comp in independent_comps:
+            x_liquid[comp].append(np.nan)
         fraction_solid.append(1.0)
         temperatures.append(temp)
         # set the final phase amount to the phase fractions in the eutectic
@@ -213,7 +215,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     conds.update(composition)
 
     temperatures = []
-    x_liquid = []
+    x_liquid = {comp: [] for comp in independent_comps}
     fraction_solid = []
     phase_amounts = {ph: [] for ph in solid_phases}  # instantaneous phase amounts
     cum_phase_amounts = {ph: [] for ph in solid_phases}
@@ -226,8 +228,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             # Add the liquid phase composition
             # TODO: will break in a liquid miscibility gap
             liquid_vertex = np.nonzero(eq.Phase == liquid_phase_name)[-1][0]
-            liquid_comp = {comp: float(eq.X[..., liquid_vertex, eq.component.index(comp)]) for comp in independent_comps}
-            x_liquid.append(liquid_comp)
+            for comp in independent_comps:
+                x_liquid[comp].append(float(eq.X[..., liquid_vertex, eq.component.index(comp)]))
             temperatures.append(current_T)
             current_T -= step_temperature
         else:
@@ -246,8 +248,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             temperatures.append(T_low)
             eq = equilibrium(dbf, comps, phases, conds, callables=cbs, to_xarray=False)
             # Set the liquid phase composition to NaN
-            liquid_comp = {comp: float(np.nan) for comp in independent_comps}
-            x_liquid.append(liquid_comp)
+            for comp in independent_comps:
+                x_liquid[comp].append(float(np.nan))
 
         # Calculate fraction of solid and solid phase amounts
         current_fraction_solid = 0.0
