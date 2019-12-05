@@ -24,20 +24,21 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         List of components in the system.
     phases : list
         List of phases in the system.
-    composition : dict
+    composition : Dict[v.X, float]
         Dictionary of independent `v.X` composition variables.
     start_temperature : float
         Starting temperature for simulation. Must be single phase liquid.
     step_temperature : Optional[float]
         Temperature step size. Defaults to 1.0.
     liquid_phase_name : Optional[str]
-        Name of the phase treated as liquid.
+        Name of the phase treated as liquid. Defaults to 'LIQUID'.
     eq_kwargs: Optional[Dict[str, Any]]
         Keyword arguments for equilibrium
     stop: Optional[float]
         Stop when the phase fraction of liquid is below this amount.
     adaptive: Optional[bool]
-        Whether
+        Whether to add additional points near the equilibrium points at each
+        step. Only takes effect if ``points`` is in the eq_kwargs dict.
 
     Returns
     -------
