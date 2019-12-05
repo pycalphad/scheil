@@ -79,7 +79,7 @@ def test_ternary_A_B_C():
     around this point.
     """
     t_temp = 683.7  # Eutectic-like to peritectic-like transition temperature, in Kelvin
-    comp = {v.X('B'): 0.5, v.X('C'): 0.05}
+    comp = {v.X('B'): 0.25, v.X('C'): 0.1}
     start = 800  # Kelvin
     step = 5.0
 
@@ -105,6 +105,13 @@ def test_ternary_A_B_C():
 
     # Check that the eutectic-like to peritectic-like transitions (ALPHA+BETA forming to BETA forming) occurs near t
     idx_last_alpha = np.nonzero(np.array(phase_amnts['ALPHA']) > 0)[0][-1]
+    # At the last formation of ALPHA, both ALPHA and BETA should be forming in the monovariant, but after only beta
+    assert phase_amnts['ALPHA'][idx_last_alpha] > 0
+    assert phase_amnts['BETA'][idx_last_alpha] > 0
+    assert np.isclose(phase_amnts['ALPHA'][idx_last_alpha + 1], 0)
+    assert phase_amnts['BETA'][idx_last_alpha + 1] > 0
+
+    # Temperature is close to t
     assert np.isclose(sol_res.temperatures[idx_last_alpha], t_temp, atol=step * 1.1)
     # Check that the compositions are resonably close as well, within 1%
     assert np.isclose(sol_res.x_liquid[idx_last_alpha][v.X('B')], 0.583, atol=0.01)
