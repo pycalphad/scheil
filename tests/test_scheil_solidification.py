@@ -53,7 +53,6 @@ def test_equilibrium_solidification_result_properties():
 
     sol_res = simulate_equilibrium_solidification(dbf, comps, phases, initial_composition,
                                                   start_temperature=start_temperature,
-                                                  end_temperature=end_temperature,
                                                   step_temperature=20.0, verbose=True)
 
     num_temperatures = len(sol_res.temperatures)
