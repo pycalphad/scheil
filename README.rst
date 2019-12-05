@@ -25,7 +25,7 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
    sol_res = simulate_scheil_solidification(dbf, comps, phases, initial_composition, start_temperature, step_temperature=1.0)
 
    # plot the result
-   for phase_name, amounts in sol_res.phase_amounts.items():
+   for phase_name, amounts in sol_res.cum_phase_amounts.items():
        plt.plot(sol_res.temperatures, amounts, label=phase_name)
    plt.plot(sol_res.temperatures, sol_res.fraction_liquid, label='LIQUID')
    plt.ylabel('Phase Fraction')
@@ -58,7 +58,7 @@ scheil package, and replaces it with the package from GitHub.
     conda install -c pycalphad -c conda-forge pycalphad>=0.8
     git clone https://github.com/pycalphad/scheil.git
     cd scheil
-    pip install -e .
+    pip install --no-deps -e .
 
 Upgrading scheil later requires you to run ``git pull`` in this directory.
 

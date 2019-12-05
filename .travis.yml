@@ -1,7 +1,8 @@
-language: python
-python:
-  - 3.5 
-  - 3.6 
+matrix:
+    include:
+        - name: "Python 3.7.1 on Xenial Linux"
+          dist: xenial
+          env: TRAVIS_PYTHON_VERSION=3.7
 install:
   - sudo apt-get update
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -13,14 +14,11 @@ install:
   - conda info -a
   - conda create -q -n scheil-env python=$TRAVIS_PYTHON_VERSION
   - source activate scheil-env
-  - conda install -c conda-forge 'pycalphad>=0.7' 'sympy<1.2'
+  - conda install -c conda-forge 'pycalphad>=0.8.1' 'scipy' 'numpy' 'pytest'
 before_script:
   - source activate scheil-env
-  - pip install -e '.[dev]'
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-  - sleep 3 # give xvfb some time to start
+  - pip install --no-deps -e .
 script:
-  - py.test -v tests/
+  - pytest -v --doctest-modules tests scheil
 notifications:
   email: False
