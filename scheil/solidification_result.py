@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class SolidifcationResult():
+class SolidificationResult():
     """Data from an equilibrium or Scheil-Gulliver solidification simulation.
 
     Parameters

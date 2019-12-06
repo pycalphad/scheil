@@ -3,7 +3,7 @@ from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_callables
 from pycalphad.core.utils import instantiate_models, generate_dof, \
     unpack_components
-from .solidification_result import SolidifcationResult
+from .solidification_result import SolidificationResult
 from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
 
 
@@ -39,7 +39,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
 
     Returns
     -------
-    SolidifcationResult
+    SolidificationResult
 
     """
     eq_kwargs = eq_kwargs or dict()
@@ -165,7 +165,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged)
+    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "scheil")
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
@@ -266,4 +266,4 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         fraction_solid.append(current_fraction_solid)
 
     converged = np.isclose(fraction_solid[-1], 1.0)
-    return SolidifcationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged)
+    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "equilibrium")
