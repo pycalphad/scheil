@@ -1,7 +1,8 @@
 import os
+import json
 import numpy as np
 from pycalphad import Database, variables as v
-from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification
+from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification, SolidificationResult
 
 
 def test_scheil_solidification_result_properties():
@@ -36,6 +37,23 @@ def test_scheil_solidification_result_properties():
     # The final instantaneous phase amounts is not 1.0 (only the amount of new solid phase added
     assert np.sum([amnts[-1] for amnts in sol_res.phase_amounts.values()]) < 1.0
 
+    # Test serialization
+    for ky, vl in sol_res.to_dict().items():
+        print(ky, vl, type(ky), type(vl))
+        json.dumps({ky: vl})
+    json.dumps(sol_res.to_dict())
+
+    # Test round tripping to/from dict
+    rnd_trip_sol_res = SolidificationResult.from_dict(sol_res.to_dict())
+    assert rnd_trip_sol_res.fraction_liquid == sol_res.fraction_liquid
+    assert rnd_trip_sol_res.fraction_solid == sol_res.fraction_solid
+    assert rnd_trip_sol_res.x_liquid == sol_res.x_liquid
+    assert rnd_trip_sol_res.cum_phase_amounts == sol_res.cum_phase_amounts
+    assert rnd_trip_sol_res.phase_amounts == sol_res.phase_amounts
+    assert rnd_trip_sol_res.temperatures == sol_res.temperatures
+    assert rnd_trip_sol_res.converged == sol_res.converged
+    assert rnd_trip_sol_res.method == sol_res.method
+
 
 def test_equilibrium_solidification_result_properties():
     """Test that SolidificationResult objects produced by equilibrium have the required properties."""
@@ -64,3 +82,20 @@ def test_equilibrium_solidification_result_properties():
     assert np.isclose(np.sum([amnts[-1] for amnts in sol_res.cum_phase_amounts.values()]), 1.0)
     # The final instantaneous phase amounts is not 1.0 (only the amount of new solid phase added
     assert np.sum([amnts[-1] for amnts in sol_res.phase_amounts.values()]) < 1.0
+
+    # Test serialization
+    for ky, vl in sol_res.to_dict().items():
+        print(ky, vl, type(ky), type(vl))
+        json.dumps({ky: vl})
+    json.dumps(sol_res.to_dict())
+
+    # Test round tripping to/from dict
+    rnd_trip_sol_res = SolidificationResult.from_dict(sol_res.to_dict())
+    assert rnd_trip_sol_res.fraction_liquid == sol_res.fraction_liquid
+    assert rnd_trip_sol_res.fraction_solid == sol_res.fraction_solid
+    assert rnd_trip_sol_res.x_liquid == sol_res.x_liquid
+    assert rnd_trip_sol_res.cum_phase_amounts == sol_res.cum_phase_amounts
+    assert rnd_trip_sol_res.phase_amounts == sol_res.phase_amounts
+    assert rnd_trip_sol_res.temperatures == sol_res.temperatures
+    assert rnd_trip_sol_res.converged == sol_res.converged
+    assert rnd_trip_sol_res.method == sol_res.method

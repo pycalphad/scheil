@@ -265,5 +265,5 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             current_fraction_solid += amount
         fraction_solid.append(current_fraction_solid)
 
-    converged = np.isclose(fraction_solid[-1], 1.0)
+    converged = True if np.isclose(fraction_solid[-1], 1.0) else False
     return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "equilibrium")
