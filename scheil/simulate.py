@@ -74,7 +74,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325.0, v.N: 1.0}
         comp_conds = liquid_comp
-        fmt_comp_conds = ', '.join(['{c}={val:0.2f}' for c, val in comp_conds.items()])
+        fmt_comp_conds = ', '.join([f'{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
         eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, **eq_kwargs)
         if adaptive:
@@ -86,7 +86,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 pts = points_dict.get(ph)
                 if pts is not None:
                     if verbose:
-                        print(f'Adding points to {ph}.', end='')
+                        print(f'Adding points to {ph}. ', end='')
                     dof = dof_dict[ph]
                     points_dict[ph] = np.concatenate([pts, local_sample(masked.Y.values.squeeze()[:sum(dof)].reshape(1, -1), dof, pdens=20)], axis=0)
 
@@ -95,22 +95,25 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
             if verbose:
-                print(f'New phases seen: {new_phases_seen}.', end='')
+                print(f'New phases seen: {new_phases_seen}. ', end='')
             phases_seen |= new_phases_seen
         if liquid_phase_name not in eq["Phase"].values.squeeze():
+            if verbose:
+                found_ph = set(eq_phases) - {''}
+                print(f'No liquid phase found at T={temp:0.3f}, {fmt_comp_conds}. (Found {found_ph}) ', end='')
             if num_eq_phases == 0:
                 # No phases found in equilibrium. Just continue on lowering the temperature without changing anything
-                print(f'Convergence failure: T={temp:0.3f} and {fmt_comp_conds}. ', end='')
+                print(f'(Convergence failure) ', end='')
             if T_STEP_ORIG / step_temperature > MAXIMUM_STEP_SIZE_REDUCTION:
                 # Only found solid phases and the step size has already been reduced. Stop running without converging.
                 if verbose:
-                    print(f'No liquid phase found at T={temp:0.3f}, {fmt_comp_conds} (Found {eq_phases}). Maximum step size reduction exceeded. Stopping.')
+                    print('Maximum step size reduction exceeded. Stopping.')
                 converged = False
                 break
             else:
                 # Only found solid phases. Try reducing the step size to zero-in on the correct phases
                 if verbose:
-                    print(f'No liquid phase found at T={temp:0.3f}, {fmt_comp_conds} (Found {eq_phases}). Stepping back and reducing step size.')
+                    print(f'Stepping back and reducing step size.')
                 temp += step_temperature
                 step_temperature /= STEP_SCALE_FACTOR
                 continue
