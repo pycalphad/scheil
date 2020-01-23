@@ -91,17 +91,17 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                     points_dict[ph] = np.concatenate([pts, local_sample(masked.Y.values.squeeze()[:sum(dof)].reshape(1, -1), dof, pdens=20)], axis=0)
 
         eq_phases = order_disorder_eq_phases(eq, ord_disord_dict)
-        num_eq_phases = np.nansum(eq_phases != '')
+        num_eq_phases = np.nansum(np.array([str(ph) for ph in eq_phases]) != '')
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
             if verbose:
                 print(f'New phases seen: {new_phases_seen}. ', end='')
             phases_seen |= new_phases_seen
         if liquid_phase_name not in eq["Phase"].values.squeeze():
+            found_ph = set(eq_phases) - {''}
             if verbose:
-                found_ph = set(eq_phases) - {''}
                 print(f'No liquid phase found at T={temp:0.3f}, {fmt_comp_conds}. (Found {found_ph}) ', end='')
-            if num_eq_phases == 0:
+            if len(found_ph) == 0:
                 # No phases found in equilibrium. Just continue on lowering the temperature without changing anything
                 print(f'(Convergence failure) ', end='')
             if T_STEP_ORIG / step_temperature > MAXIMUM_STEP_SIZE_REDUCTION:
