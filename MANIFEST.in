@@ -1,0 +1,3 @@
+include versioneer.py
+include scheil/_version.py
+include LICENSE
