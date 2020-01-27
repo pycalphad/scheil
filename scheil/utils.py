@@ -5,26 +5,27 @@ from scipy.stats import norm
 from pycalphad.core.utils import unpack_components, generate_dof
 
 
-def get_phase_amounts(eq, phases):
+def get_phase_amounts(eq_phases, phase_fractions, all_phases):
     """Return the phase fraction for each phase in equilibrium
 
     Parameters
     ----------
-    eq : pycalphad.core.light_dataset.LightDataset
-        Point equilibrium calculation result
-    phases : Sequence[str]
-        Phases to get the amounts of
+    eq_phases : Sequence[str]
+        Equilibrium phases
+    phase_fractions : Sequence[float]
+        Phase amounts corresponding to the equilibrium phases
+    all_phases : Sequence[str]
+        All phases that we want to keep track of in the system.
 
     Returns
     -------
     Dict[str, float]
 
     """
-    phase_amnts = {ph: 0.0 for ph in phases}
-    for ph_idx in range(eq.vertex.size):
-        cur_phase = str(eq.Phase[..., ph_idx].squeeze())
-        if cur_phase in phases:
-            phase_amnts[cur_phase] += float(eq.NP[..., ph_idx].squeeze())
+    phase_amnts = {ph: 0.0 for ph in all_phases}
+    for phase_name, fraction in zip(eq_phases, phase_fractions):
+        if phase_name in all_phases:
+            phase_amnts[phase_name] += float(fraction)
     return phase_amnts
 
 
@@ -134,6 +135,15 @@ def order_disorder_dict(dbf, comps, phases):
 def order_disorder_eq_phases(eq_result, order_disorder_dict):
     """Return a list corresponding to the eq_result.Phase with order/disorder
     phases named correctly.
+
+    Parameters
+    ----------
+    eq_result : pycalphad.LightDataset
+    order_disorder_dict : Dict
+
+    Returns
+    -------
+    List
     """
     eq_phases = []
     for vtx in eq_result.vertex.values:
