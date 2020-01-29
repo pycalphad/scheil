@@ -4,6 +4,10 @@ scheil
 
 A Scheil-Gulliver simulation tool using `pycalphad`_.
 
+.. image:: https://zenodo.org/badge/150358281.svg
+   :target: https://zenodo.org/badge/latestdoi/150358281
+
+
 .. _pycalphad: http://pycalphad.org
 
 .. code-block:: python
@@ -34,16 +38,21 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
    plt.legend(loc='best')
    plt.show()
 
-.. image:: docs/_static/Al-30Zn_Scheil_simulation.png
+.. image:: _static/Al-30Zn_Scheil_simulation.png
     :align: center
     :alt: Phase fraction evolution during a Scheil simulation of Al-30Zn
 
 Installation
 ============
 
-scheil is still in early development and is not yet released on PyPI or conda-forge.
-To use scheil, please install the development version.
+Anaconda (recommended)
+----------------------
 
+scheil is suggested to be installed from conda-forge.
+
+.. code-block:: bash
+
+    conda install -c pycalphad -c conda-forge --yes scheil
 
 Development versions
 --------------------
@@ -55,9 +64,10 @@ scheil package, and replaces it with the package from GitHub.
 
 .. code-block:: bash
 
-    conda install -c pycalphad -c conda-forge pycalphad>=0.8
     git clone https://github.com/pycalphad/scheil.git
     cd scheil
+    conda install scheil
+    conda remove --force scheil
     pip install --no-deps -e .
 
 Upgrading scheil later requires you to run ``git pull`` in this directory.
@@ -84,3 +94,35 @@ License
 =======
 
 scheil is MIT licensed. See LICENSE.
+
+
+Citing
+======
+
+.. image:: https://zenodo.org/badge/150358281.svg
+   :target: https://zenodo.org/badge/latestdoi/150358281
+
+
+If you use the ``scheil`` package in your work, please cite the relevant version.
+
+The following DOI, `doi:10.5281/zenodo.3630656 <https://doi.org/10.5281/zenodo.3630656>`_, will link to the latest released version of the code on Zenodo where you can cite the specific version that you haved used. For example, version 1.0 can be cited as:
+
+``Bocklund, Brandon, Bobbio, Lourdes D., Otis, Richard A., Beese, Allison M., & Liu, Zi-Kui. (2020, January 29). pycalphad-scheil: 0.1.2 (Version 0.1.2). Zenodo. http://doi.org/10.5281/zenodo.3630657``
+
+.. code-block::
+
+   @software{bocklund_brandon_2020_3630657,
+     author       = {Bocklund, Brandon and
+                     Bobbio, Lourdes D. and
+                     Otis, Richard A. and
+                     Beese, Allison M. and
+                     Liu, Zi-Kui},
+     title        = {pycalphad-scheil: 0.1.2},
+     month        = jan,
+     year         = 2020,
+     publisher    = {Zenodo},
+     version      = {0.1.2},
+     doi          = {10.5281/zenodo.3630657},
+     url          = {https://doi.org/10.5281/zenodo.3630657}
+   }
+
