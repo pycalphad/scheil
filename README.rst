@@ -109,7 +109,7 @@ The following DOI, `doi:10.5281/zenodo.3630656 <https://doi.org/10.5281/zenodo.3
 
 ``Bocklund, Brandon, Bobbio, Lourdes D., Otis, Richard A., Beese, Allison M., & Liu, Zi-Kui. (2020, January 29). pycalphad-scheil: 0.1.2 (Version 0.1.2). Zenodo. http://doi.org/10.5281/zenodo.3630657``
 
-.. code-block::
+.. code-block:: none
 
    @software{bocklund_brandon_2020_3630657,
      author       = {Bocklund, Brandon and
