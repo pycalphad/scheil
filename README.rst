@@ -38,7 +38,7 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
    plt.legend(loc='best')
    plt.show()
 
-.. image:: _static/Al-30Zn_Scheil_simulation.png
+.. image:: https://raw.githubusercontent.com/pycalphad/scheil/master/docs/_static/Al-30Zn_Scheil_simulation.png
     :align: center
     :alt: Phase fraction evolution during a Scheil simulation of Al-30Zn
 
