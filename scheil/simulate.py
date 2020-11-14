@@ -3,7 +3,7 @@ import numpy as np
 from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_callables
 from pycalphad.core.utils import instantiate_models, generate_dof, \
-    unpack_components
+    unpack_components, filter_phases
 from .solidification_result import SolidificationResult
 from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
 
@@ -85,6 +85,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     STEP_SCALE_FACTOR = 1.2  # How much to try to adapt the temperature step by
     MAXIMUM_STEP_SIZE_REDUCTION = 5.0
     T_STEP_ORIG = step_temperature
+    phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
     models = instantiate_models(dbf, comps, phases)
     if verbose:
         print('building callables... ', end='')
@@ -245,6 +246,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
 
     """
     eq_kwargs = eq_kwargs or dict()
+    phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
     ord_disord_dict = order_disorder_dict(dbf, comps, phases)
     solid_phases = sorted(set(phases) - {'GAS', liquid_phase_name})
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
