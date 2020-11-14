@@ -105,9 +105,11 @@ Citing
 
 If you use the ``scheil`` package in your work, please cite the relevant version.
 
-The following DOI, `doi:10.5281/zenodo.3630656 <https://doi.org/10.5281/zenodo.3630656>`_, will link to the latest released version of the code on Zenodo where you can cite the specific version that you haved used. For example, version 1.0 can be cited as:
+The following DOI, `doi:10.5281/zenodo.3630656 <https://doi.org/10.5281/zenodo.3630656>`_, will link to the latest released version of the code on Zenodo where you can cite the specific version that you haved used. For example, version 0.1.2 can be cited as:
 
-``Bocklund, Brandon, Bobbio, Lourdes D., Otis, Richard A., Beese, Allison M., & Liu, Zi-Kui. (2020, January 29). pycalphad-scheil: 0.1.2 (Version 0.1.2). Zenodo. http://doi.org/10.5281/zenodo.3630657``
+.. code-block:: none
+
+   Bocklund, Brandon, Bobbio, Lourdes D., Otis, Richard A., Beese, Allison M., & Liu, Zi-Kui. (2020, January 29). pycalphad-scheil: 0.1.2 (Version 0.1.2). Zenodo. http://doi.org/10.5281/zenodo.3630657
 
 .. code-block:: none
 
