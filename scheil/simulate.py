@@ -67,7 +67,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     step_temperature : Optional[float]
         Temperature step size. Defaults to 1.0.
     liquid_phase_name : Optional[str]
-        Name of the phase treated as liquid. Defaults to 'LIQUID'.
+        Name of the phase treated as liquid (i.e. the phase with infinitely
+        fast diffusion). Defaults to 'LIQUID'.
     eq_kwargs: Optional[Dict[str, Any]]
         Keyword arguments for equilibrium
     stop: Optional[float]
@@ -91,7 +92,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N}, build_gradients=True, build_hessians=True)
     if verbose:
         print('done')
-    solid_phases = sorted(set(phases) - {'GAS', liquid_phase_name})
+    solid_phases = sorted(set(phases) - {liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
@@ -234,7 +235,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     step_temperature : Optional[float]
         Temperature step size. Defaults to 1.0.
     liquid_phase_name : Optional[str]
-        Name of the phase treated as liquid. Defaults to 'LIQUID'.
+        Name of the phase treated as liquid (i.e. the phase with infinitely
+        fast diffusion). Defaults to 'LIQUID'.
     eq_kwargs: Optional[Dict[str, Any]]
         Keyword arguments for equilibrium
     binary_search_tol : float
@@ -246,7 +248,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     """
     eq_kwargs = eq_kwargs or dict()
     ord_disord_dict = order_disorder_dict(dbf, comps, phases)
-    solid_phases = sorted(set(phases) - {'GAS', liquid_phase_name})
+    solid_phases = sorted(set(phases) - {liquid_phase_name})
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     models = instantiate_models(dbf, comps, phases)
     if verbose:
