@@ -1,7 +1,6 @@
 name: base
 channels:
   - conda-forge
-  - pycalphad
 dependencies:
   - numpy
   - pycalphad>=0.8.1

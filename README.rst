@@ -52,7 +52,7 @@ scheil is suggested to be installed from conda-forge.
 
 .. code-block:: bash
 
-    conda install -c pycalphad -c conda-forge --yes scheil
+    conda install -c conda-forge scheil
 
 Development versions
 --------------------
