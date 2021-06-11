@@ -32,8 +32,6 @@ jobs:
         python -m pip install --no-build-isolation .
         cd ..
         python -c 'import pycalphad; print(f"pycalphad version: {pycalphad.__version__}")'
-    - name: Install pycalphad release version
-      run: python -m pip install --editable .
-      if: ${{ !matrix.pycalphad_develop_version }}
+    - name: python -m pip install --editable .
     - name: Test with pytest
       run: pytest -v --doctest-modules scheil tests
