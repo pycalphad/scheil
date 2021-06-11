@@ -6,6 +6,7 @@ jobs:
   Tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       max-parallel: 100
       matrix:
         python-version: [3.7, 3.8, 3.9]
@@ -31,5 +32,8 @@ jobs:
         python -m pip install --no-build-isolation .
         cd ..
         python -c 'import pycalphad; print(f"pycalphad version: {pycalphad.__version__}")'
+    - name: Install pycalphad release version
+      run: python -m pip install --editable .
+      if: !matrix.pycalphad_develop_version
     - name: Test with pytest
       run: pytest -v --doctest-modules scheil tests
