@@ -8,7 +8,7 @@ jobs:
     strategy:
       max-parallel: 100
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9]
         pycalphad_develop_version: [true, false]
 
     steps:
@@ -20,21 +20,16 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        $CONDA/bin/conda env update --file environment.yml --name base
+      run: python -m pip install -U pip setuptools pytest
     - name: Install pycalphad development version
       if: matrix.pycalphad_develop_version
       run: |
-        $CONDA/bin/conda remove --force pycalphad
         git clone https://github.com/pycalphad/pycalphad pycalphad-dev
         cd pycalphad-dev
         git checkout develop
-        $CONDA/bin/pip install --no-deps -e .
+        python -m pip install -r requirements-dev.txt
+        python -m pip install --no-build-isolation .
         cd ..
-        $CONDA/bin/python -c 'import pycalphad; print(f"pycalphad version: {pycalphad.__version__}")'
+        python -c 'import pycalphad; print(f"pycalphad version: {pycalphad.__version__}")'
     - name: Test with pytest
-      run: |
-        conda install pytest
-        conda list
-        $CONDA/bin/pytest -v --doctest-modules scheil tests
+      run: pytest -v --doctest-modules scheil tests
