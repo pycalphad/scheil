@@ -1,7 +1,0 @@
-name: base
-channels:
-  - conda-forge
-dependencies:
-  - numpy
-  - pycalphad>=0.8.1
-  - scipy
