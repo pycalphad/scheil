@@ -350,6 +350,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
             current_fraction_solid += amount
+        print('cum_phase_amounts', cum_phase_amounts)
+        print('current_fraction_solid', current_fraction_solid)
         fraction_solid.append(current_fraction_solid)
 
     converged = True if np.isclose(fraction_solid[-1], 1.0) else False
