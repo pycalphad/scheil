@@ -87,20 +87,21 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     MAXIMUM_STEP_SIZE_REDUCTION = 5.0
     T_STEP_ORIG = step_temperature
     phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
+    ord_disord_dict = order_disorder_dict(dbf, comps, phases)
     models = instantiate_models(dbf, comps, phases)
     if verbose:
         print('building callables... ', end='')
     cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N}, build_gradients=True, build_hessians=True)
     if verbose:
         print('done')
-    solid_phases = sorted(set(phases) - {liquid_phase_name})
+    filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
+    solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
-    ord_disord_dict = order_disorder_dict(dbf, comps, phases)
 
     if adaptive and ('points' in eq_kwargs.get('calc_opts', {})):
         # Dynamically add points as the simulation runs
@@ -250,7 +251,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     eq_kwargs = eq_kwargs or dict()
     phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
     ord_disord_dict = order_disorder_dict(dbf, comps, phases)
-    solid_phases = sorted(set(phases) - {liquid_phase_name})
+    filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
+    solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     models = instantiate_models(dbf, comps, phases)
     if verbose:
