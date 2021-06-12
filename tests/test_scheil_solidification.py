@@ -2,7 +2,6 @@ import os
 import json
 import numpy as np
 from pycalphad import Database, variables as v
-from pycalphad.core.equilibrium import equilibrium
 from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification, SolidificationResult
 
 
@@ -68,9 +67,6 @@ def test_equilibrium_solidification_result_properties():
 
     initial_composition = {v.X('ZN'): 0.3}
     start_temperature = 850
-    print('start eq')
-    print(equilibrium(dbf, comps, phases, {v.P: 101325, v.N: 1, v.T: start_temperature, **initial_composition}))
-    print('done')
     sol_res = simulate_equilibrium_solidification(dbf, comps, phases, initial_composition,
                                                   start_temperature=start_temperature,
                                                   step_temperature=20.0, verbose=True)
