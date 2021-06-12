@@ -278,7 +278,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     current_T = start_temperature
     if verbose:
         print('T=')
-    while fraction_solid[-1] < 1 if len(fraction_solid) > 0 else True:
+    while fraction_solid[-1] < 1 if len(fraction_solid) > 0 else not converged:
         sys.stdout.flush()
         conds[v.T] = current_T
         if verbose:
@@ -321,6 +321,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                     T_high = bin_search_T
                 else:
                     T_low = bin_search_T
+            converged = True
             conds[v.T] = T_low
             temperatures.append(T_low)
             eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, to_xarray=False, **eq_kwargs)
@@ -350,8 +351,6 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
             current_fraction_solid += amount
-        print('cum_phase_amounts', cum_phase_amounts)
-        print('current_fraction_solid', current_fraction_solid)
         fraction_solid.append(current_fraction_solid)
 
     converged = True if np.isclose(fraction_solid[-1], 1.0) else False
