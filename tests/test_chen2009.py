@@ -4,6 +4,7 @@ import os
 import numpy as np
 from pycalphad import Database, variables as v
 from scheil import simulate_scheil_solidification
+import pytest
 
 DB_CHEN = Database(os.path.join(os.path.dirname(__file__), 'sl_chen.tdb'))
 
@@ -15,6 +16,60 @@ def test_binary_A_B():
     step = 5.0
 
     sol_res = simulate_scheil_solidification(DB_CHEN, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    print(f"Converged to stopping criteria: {sol_res.converged}")
+
+    phase_amnts = sol_res.phase_amounts
+    # Check that the first solid phase to form is ALPHA and occurs at ~768 K
+    idx_first_solid = np.nonzero(np.array(sol_res.fraction_solid) > 0)[0][0]
+    assert phase_amnts['ALPHA'][idx_first_solid] > 0
+    assert np.isclose(phase_amnts['BETA'][idx_first_solid], 0)
+    # increase step atol a little for it to be inclusive
+    assert np.isclose(sol_res.temperatures[idx_first_solid], 768, atol=step * 1.1)
+
+    # Check that the last solid phase to form is BETA only and terminates at 600 K
+    assert np.isclose(phase_amnts['ALPHA'][-1], 0)
+    assert phase_amnts['BETA'][-1] > 0
+    if sol_res.converged:
+        # May have converged prior to the eutectic, but not below
+        assert sol_res.temperatures[-1] < 600 + step * 2 and sol_res.temperatures[-1] > 600
+    else:
+        # increase step atol a a litte, since it should have ended at the eutectic
+        assert np.isclose(sol_res.temperatures[-1], 600, atol=step * 1.1)
+
+    # Check that the temperature where the ALPHA to BETA switch occurs is close to the peritectic temperature of 647 K.
+    idx_first_beta = np.nonzero(np.array(phase_amnts['BETA']) > 0)[0][0]
+    idx_last_alpha = np.nonzero(np.array(phase_amnts['ALPHA']) > 0)[0][-1]
+    assert (idx_last_alpha + 1) == idx_first_beta
+    # increase step atol a little for it to be inclusive
+    assert np.isclose(sol_res.temperatures[idx_first_beta], 647, atol=step * 1.1)
+
+@pytest.mark.parametrize(
+    'phases',
+    (
+        ['ALPHA', 'BETA', 'ORD_BETA', 'LIQUID'],
+        ['ALPHA', 'ORD_BETA', 'LIQUID'],
+        ['ALPHA', 'BETA', 'LIQUID'],
+    )
+)
+def test_binary_A_B_with_ordering(phases):
+    """Tests for the Scheil properties of the A-B binary peritectic system with an ordered phase ORD_BETA"""
+    with open(os.path.join(os.path.dirname(__file__), 'sl_chen.tdb')) as fp:
+        tdb_str = fp.read()
+    # Append an ordered phase, 'ORD_BETA' with no ordering parameters
+    ordered_phase_str = """
+    TYPE_DEFINITION L GES A_P_D  ORD_BETA DIS_PART BETA   ,,,!
+    PHASE ORD_BETA %L  2  0.75  0.25   !
+    CONSTITUENT ORD_BETA :A,B,C:A,B,C: !
+    """
+    tdb_str += ordered_phase_str
+
+    dbf = Database(tdb_str)
+
+    comp = {v.X('B'): 0.5}
+    start = 800  # Kelvin
+    step = 5.0
+
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'B'], phases, comp, start, step_temperature=step, stop=1e-8)
     print(f"Converged to stopping criteria: {sol_res.converged}")
 
     phase_amnts = sol_res.phase_amounts
