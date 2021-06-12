@@ -278,7 +278,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     current_T = start_temperature
     if verbose:
         print('T=')
-    while fraction_solid[-1] < 1 if len(fraction_solid) > 0 else not converged:
+    while (fraction_solid[-1] < 1 if len(fraction_solid) > 0 else True) and not converged:
         sys.stdout.flush()
         conds[v.T] = current_T
         if verbose:
