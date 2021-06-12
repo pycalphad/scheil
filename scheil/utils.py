@@ -69,7 +69,7 @@ def is_ordered(site_fracs, subl_dof, symmetric_subl_idx, **kwargs):
     # fractions of that particular sublattice from the site fraction array
     subl_slices = []
     for subl_idx in range(len(subl_dof)):
-        start_idx = np.sum(subl_dof[:subl_idx], dtype=np.int)
+        start_idx = np.sum(subl_dof[:subl_idx], dtype=np.int_)
         end_idx = start_idx + subl_dof[subl_idx]
         subl_slices.append(slice(start_idx, end_idx))
 
@@ -197,4 +197,3 @@ def local_sample(sitefracs, comp_count, pdens=100, stddev=0.05):
         pts[:, cur_idx:end_idx] /= pts[:, cur_idx:end_idx].sum(axis=1)[:, None]
         cur_idx = end_idx
     return pts
-
