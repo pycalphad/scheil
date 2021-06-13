@@ -1,4 +1,3 @@
-# Based on https://github.com/pypa/cibuildwheel/blob/main/examples/github-deploy.yml
 name: Build and deploy to PyPI
 
 # Build on every branch push and pull request
@@ -11,38 +10,7 @@ on:
       - published
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # fetch the entire repo history, required to guarantee versioneer will pick up the tags
-
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.8'
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.0.0a2
-        env:
-          # Build all CPython platforms except Python 3.5 and 3.6
-          # PyPy wheels not allowed because SciPy (build requirement) is not available
-          CIBW_BUILD: cp3*-*
-          CIBW_SKIP: cp35-* cp36-*
-          CIBW_ARCHS_MACOS: x86_64 universal2 arm64
-
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
-
-  build_sdist:
-    name: Build source distribution
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -50,19 +18,21 @@ jobs:
       - uses: actions/setup-python@v2
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - run: pip install build
 
-      - name: Build sdist
-        run: python -m build --sdist
+      - name: Build sdist and wheel
+        run: python -m build
 
       - uses: actions/upload-artifact@v2
         with:
-          path: dist/*.tar.gz
+          path: |
+            dist/*.tar.gz
+            dist/*.whl
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build]
     runs-on: ubuntu-latest
     # upload to PyPI when a GitHub Release is created
     if: github.event_name == 'release' && github.event.action == 'published'
