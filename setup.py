@@ -1,30 +1,28 @@
 from setuptools import setup
 import os
-import versioneer
 
 def readme(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
     name='scheil',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     author='Brandon Bocklund',
     author_email='brandonbocklund@gmail.com',
     description='Scheil-Gulliver simulations using pycalphad.',
-    packages=['scheil'],
+    packages=['scheil'],  # do not include _dev
     license='MIT',
     long_description=readme('README.rst'),
-    url='https://pycalphad.org/',
+    url='https://scheil.readthedocs.io/',
     install_requires=[
         'numpy',
         'scipy',
+        'setuptools_scm[toml]>=6.0',
         'pycalphad>=0.8.1',
     ],
     extras_require={
         'dev': [
+            'furo',
             'sphinx',
-            'sphinx_rtd_theme',
             'pytest',
             'twine',
         ],

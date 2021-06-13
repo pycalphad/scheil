@@ -1,0 +1,53 @@
+name: Build and deploy to PyPI
+
+# Build on every branch push and pull request
+# Also build (and deploy) when a GitHub Release is created
+on:
+  push:
+  pull_request:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # fetch the entire repo history, required to guarantee setuptools_scm will pick up tags
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.9'
+
+      - run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: |
+            dist/*.tar.gz
+            dist/*.whl
+
+  upload_pypi:
+    needs: [build]
+    runs-on: ubuntu-latest
+    # upload to PyPI when a GitHub Release is created
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_SCHEIL_TOKEN }}
+          # To test, uncomment the following:
+          # password: ${{ secrets.TEST_PYPI_SCHEIL_TOKEN }}
+          # repository_url: https://test.pypi.org/legacy/
