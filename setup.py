@@ -1,14 +1,11 @@
 from setuptools import setup
 import os
-import versioneer
 
 def readme(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
     name='scheil',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     author='Brandon Bocklund',
     author_email='brandonbocklund@gmail.com',
     description='Scheil-Gulliver simulations using pycalphad.',
