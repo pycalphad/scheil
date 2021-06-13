@@ -1,0 +1,13 @@
+version: 2
+
+python:
+  version: 3.9
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - dev
+
+# PDF/LaTeX currently broken
+# see: https://github.com/PhasesResearchLab/ESPEI/issues/167
+formats: []

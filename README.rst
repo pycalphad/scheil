@@ -45,10 +45,17 @@ A Scheil-Gulliver simulation tool using `pycalphad`_.
 Installation
 ============
 
-Anaconda (recommended)
-----------------------
+pip (recommended)
+-----------------
 
-scheil is suggested to be installed from conda-forge.
+scheil is suggested to be installed from PyPI.
+
+.. code-block:: bash
+
+    pip install scheil
+
+Anaconda
+--------
 
 .. code-block:: bash
 
@@ -57,21 +64,21 @@ scheil is suggested to be installed from conda-forge.
 Development versions
 --------------------
 
-To make improvements to scheil, it is suggested to use
-Anaconda to download all of the required dependencies. This
-method installs scheil with Anaconda, removes specifically the
-scheil package, and replaces it with the package from GitHub.
+To install an editable development version with pip:
 
 .. code-block:: bash
 
     git clone https://github.com/pycalphad/scheil.git
     cd scheil
-    conda install scheil
-    conda remove --force scheil
-    pip install --no-deps -e .
+    pip install --editable .[dev]
 
 Upgrading scheil later requires you to run ``git pull`` in this directory.
 
+Run the automated tests using
+
+.. code-block:: bash
+
+    pytest
 
 Theory
 ======
@@ -127,4 +134,3 @@ The following DOI, `doi:10.5281/zenodo.3630656 <https://doi.org/10.5281/zenodo.3
      doi          = {10.5281/zenodo.3630657},
      url          = {https://doi.org/10.5281/zenodo.3630657}
    }
-

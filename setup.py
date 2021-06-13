@@ -12,19 +12,20 @@ setup(
     author='Brandon Bocklund',
     author_email='brandonbocklund@gmail.com',
     description='Scheil-Gulliver simulations using pycalphad.',
-    packages=['scheil'],
+    packages=['scheil'],  # do not include _dev
     license='MIT',
     long_description=readme('README.rst'),
-    url='https://pycalphad.org/',
+    url='https://scheil.readthedocs.io/',
     install_requires=[
         'numpy',
         'scipy',
+        'setuptools_scm[toml]>=6.0',
         'pycalphad>=0.8.1',
     ],
     extras_require={
         'dev': [
+            'furo',
             'sphinx',
-            'sphinx_rtd_theme',
             'pytest',
             'twine',
         ],
