@@ -7,7 +7,3 @@ python:
       path: .
       extra_requirements:
         - dev
-
-# PDF/LaTeX currently broken
-# see: https://github.com/PhasesResearchLab/ESPEI/issues/167
-formats: []
