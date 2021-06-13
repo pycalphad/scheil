@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        fetch-depth: 0  # fetch the entire repo history, required to guarantee versioneer will pick up the tags
+        fetch-depth: 0  # fetch the entire repo history, required to guarantee setuptools_scm will pick up tags
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
