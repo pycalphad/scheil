@@ -2,6 +2,17 @@
 Changelog
 =========
 
+0.1.5 (2021-06-12)
+==================
+
+* Fix a floating point bug where equilibrium solidification could get stuck in an infinite loop after a binary search (:issue:`15`)
+* Fix a bug where the disordered part of partitioned phases would not be counted as solidified solid if it became stable (:issue:`16`)
+
+0.1.4 (2020-11-14)
+==================
+
+* Fix to PyPI distribution
+
 0.1.3 (2020-11-14)
 ==================
 
