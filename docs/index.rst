@@ -18,6 +18,12 @@
 
    api/modules
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer
+
+   releasing
+
 Indices and tables
 ==================
 
