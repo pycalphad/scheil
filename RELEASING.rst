@@ -20,9 +20,6 @@ Replace their values with the last public release's version number and the new v
 #. ``git add docs/api CHANGES.rst`` to stage the updated documentation.
 #. ``git commit -m "REL: 0.2"`` to commit the changes.
 #. ``git push origin master``
-#. ``git checkout master``
-#. ``git merge master`` (do not create a merge commit)
-#. ``git push origin master``
 #. **Verify that all continuous integration test and build workflows pass.**
 #. Create a release on GitHub
 
