@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      - run: pip install build
+      - run: pip install build twine
 
       - name: Build sdist and wheel
         run: python -m build
@@ -32,6 +32,8 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.whl
+
+      - run: twine check --strict dist/*
 
   upload_pypi:
     needs: [build]
