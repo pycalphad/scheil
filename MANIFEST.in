@@ -1,1 +1,5 @@
 include LICENSE
+
+# This subpckage is only used in development checkouts and should not be
+# included in source distributions
+prune pycalphad/_dev
