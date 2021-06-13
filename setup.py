@@ -12,6 +12,7 @@ setup(
     packages=['scheil'],  # do not include _dev
     license='MIT',
     long_description=readme('README.rst'),
+    long_description_content_type='text/x-rst',
     url='https://scheil.readthedocs.io/',
     install_requires=[
         'numpy',
