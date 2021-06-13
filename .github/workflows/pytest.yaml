@@ -30,6 +30,7 @@ jobs:
         git clone https://github.com/pycalphad/pycalphad pycalphad-dev
         cd pycalphad-dev
         git checkout develop
+        python -m pip install -r requirements-dev.txt
         python -m pip install --no-build-isolation .
         cd ..
         python -c 'import pycalphad; print(f"pycalphad version: {pycalphad.__version__}")'
