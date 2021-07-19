@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from pycalphad import equilibrium, variables as v
-from pycalphad.codegen.callables import build_callables
+from pycalphad.codegen.callables import build_callables, build_phase_records
 from pycalphad.core.utils import instantiate_models, generate_dof, \
     unpack_components, filter_phases
 from .solidification_result import SolidificationResult
@@ -90,8 +90,9 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     ord_disord_dict = order_disorder_dict(dbf, comps, phases)
     models = instantiate_models(dbf, comps, phases)
     if verbose:
-        print('building callables... ', end='')
-    cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N}, build_gradients=True, build_hessians=True)
+        print('building PhaseRecord objects... ', end='')
+    # Dummy N, P, T conditions to ensure that we build PhaseRecords for all state variables
+    phase_records = build_phase_records(dbf, comps, phases, {v.N: None, v.P: None, v.T: None}, models)
     if verbose:
         print('done')
     filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
@@ -118,7 +119,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         comp_conds = liquid_comp
         fmt_comp_conds = ', '.join([f'{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
-        eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, **eq_kwargs)
         if adaptive:
             # Update the points dictionary with local samples around the equilibrium site fractions
             points_dict = eq_kwargs['calc_opts']['points']
@@ -256,8 +257,9 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     models = instantiate_models(dbf, comps, phases)
     if verbose:
-        print('building callables... ', end='')
-    cbs = build_callables(dbf, comps, phases, models, additional_statevars={v.P, v.T, v.N}, build_gradients=True, build_hessians=True)
+        print('building PhaseRecord objects... ', end='')
+    # Dummy N, P, T conditions to ensure that we build PhaseRecords for all state variables
+    phase_records = build_phase_records(dbf, comps, phases, {v.N: None, v.P: None, v.T: None}, models)
     if verbose:
         print('done')
     conds = {v.P: 101325, v.N: 1.0}
@@ -285,7 +287,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         conds[v.T] = current_T
         if verbose:
             print(f'{current_T} ', end='')
-        eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, to_xarray=False, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
         if not is_converged(eq):
             if verbose:
                 comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
@@ -311,7 +313,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             while (T_high - T_low) > binary_search_tol:
                 bin_search_T = (T_high - T_low) * 0.5 + T_low
                 conds[v.T] = bin_search_T
-                eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, to_xarray=False, **eq_kwargs)
+                eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
                 if adaptive:
                     # Update the points dictionary with local samples around the equilibrium site fractions
                     update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
@@ -326,7 +328,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             converged = True
             conds[v.T] = T_low
             temperatures.append(T_low)
-            eq = equilibrium(dbf, comps, phases, conds, callables=cbs, model=models, to_xarray=False, **eq_kwargs)
+            eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
             if not is_converged(eq):
                 if verbose:
                     comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
