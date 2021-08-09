@@ -91,8 +91,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     models = instantiate_models(dbf, comps, phases)
     if verbose:
         print('building PhaseRecord objects... ', end='')
-    # Dummy N, P, T conditions to ensure that we build PhaseRecords for all state variables
-    phase_records = build_phase_records(dbf, comps, phases, {v.N: None, v.P: None, v.T: None}, models)
+    phase_records = build_phase_records(dbf, comps, phases, [v.N, v.P, v.T], models)
     if verbose:
         print('done')
     filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
@@ -258,8 +257,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     models = instantiate_models(dbf, comps, phases)
     if verbose:
         print('building PhaseRecord objects... ', end='')
-    # Dummy N, P, T conditions to ensure that we build PhaseRecords for all state variables
-    phase_records = build_phase_records(dbf, comps, phases, {v.N: None, v.P: None, v.T: None}, models)
+    phase_records = build_phase_records(dbf, comps, phases, [v.N, v.P, v.T], models)
     if verbose:
         print('done')
     conds = {v.P: 101325, v.N: 1.0}
