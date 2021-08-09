@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from pycalphad import equilibrium, variables as v
-from pycalphad.codegen.callables import build_callables, build_phase_records
+from pycalphad.codegen.callables import build_phase_records
 from pycalphad.core.utils import instantiate_models, generate_dof, \
     unpack_components, filter_phases
 from .solidification_result import SolidificationResult
