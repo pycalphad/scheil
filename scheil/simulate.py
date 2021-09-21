@@ -116,12 +116,17 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         eq_kwargs.setdefault('calc_opts', {})
         # TODO: handle per-phase/unpackable points and pdens
         if 'points' not in eq_kwargs['calc_opts']:
-            # construct a points dict for the user
+            if verbose:
+                print('generating points... ', end='')
             points_dict = {}
             for phase_name, mod in models.items():
+                if verbose:
+                    print(phase_name, end=' ')
                 pdens = eq_kwargs['calc_opts'].get('pdens', 50)
                 points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens)
             eq_kwargs['calc_opts']['points'] = points_dict
+            if verbose:
+                print('done')
 
     converged = False
     phases_seen = {liquid_phase_name, ''}
