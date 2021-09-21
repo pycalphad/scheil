@@ -2,6 +2,8 @@ import sys
 import numpy as np
 from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_phase_records
+from pycalphad.core.calculate import _sample_phase_constitution
+from pycalphad.core.utils import point_sample
 from pycalphad.core.utils import instantiate_models, generate_dof, \
     unpack_components, filter_phases
 from .solidification_result import SolidificationResult
@@ -103,12 +105,18 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
-    if adaptive and ('points' in eq_kwargs.get('calc_opts', {})):
-        # Dynamically add points as the simulation runs
+    if adaptive:
         species = unpack_components(dbf, comps)
         dof_dict = {ph: generate_dof(dbf.phases[ph], species)[1] for ph in phases}
-    else:
-        adaptive = False
+        eq_kwargs.setdefault('calc_opts', {})
+        # TODO: handle per-phase/unpackable points and pdens
+        if 'points' not in eq_kwargs['calc_opts']:
+            # construct a points dict for the user
+            points_dict = {}
+            for phase_name, mod in models.items():
+                pdens = eq_kwargs['calc_opts'].get('pdens', 50)
+                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens)
+            eq_kwargs['calc_opts']['points'] = points_dict
 
     converged = False
     phases_seen = {liquid_phase_name, ''}
