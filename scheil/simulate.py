@@ -48,10 +48,11 @@ def _update_points(eq, points_dict, dof_dict, local_pdens=0, verbose=False):
             if verbose:
                 print(f'Adding points to {ph}. ', end='')
             dof = dof_dict[ph]
+            eq_pts = eq.Y.squeeze()[vtx, :].reshape(1, -1)[:, :sum(dof)]
             if local_pdens > 0:
-                points_dict[ph] = np.concatenate([pts, local_sample(eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1), dof, pdens=local_pdens)], axis=0)
+                points_dict[ph] = np.concatenate([pts, local_sample(eq_pts, dof, pdens=local_pdens)], axis=0)
             else:
-                points_dict[ph] = np.concatenate([pts, eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1)], axis=0)
+                points_dict[ph] = np.concatenate([pts, eq_pts], axis=0)
 
 
 def simulate_scheil_solidification(dbf, comps, phases, composition,
