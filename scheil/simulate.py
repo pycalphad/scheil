@@ -3,8 +3,7 @@ import numpy as np
 from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_phase_records
 from pycalphad.core.calculate import _sample_phase_constitution
-from pycalphad.core.utils import point_sample
-from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases
+from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases, point_sample
 from .solidification_result import SolidificationResult
 from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
 
@@ -48,7 +47,7 @@ def _update_points(eq, points_dict, dof_dict, local_pdens=0, verbose=False):
             if verbose:
                 print(f'Adding points to {ph}. ', end='')
             dof = dof_dict[ph]
-            eq_pts = eq.Y.squeeze()[vtx, :].reshape(1, -1)[:, :sum(dof)]
+            eq_pts = eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1)
             if local_pdens > 0:
                 points_dict[ph] = np.concatenate([pts, local_sample(eq_pts, dof, pdens=local_pdens)], axis=0)
             else:
