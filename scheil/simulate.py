@@ -4,8 +4,7 @@ from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_phase_records
 from pycalphad.core.calculate import _sample_phase_constitution
 from pycalphad.core.utils import point_sample
-from pycalphad.core.utils import instantiate_models, generate_dof, \
-    unpack_components, filter_phases
+from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases
 from .solidification_result import SolidificationResult
 from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
 
@@ -24,17 +23,21 @@ def is_converged(eq):
     return False
 
 
-def update_points(eq, points_dict, dof_dict, verbose=False):
+def _update_points(eq, points_dict, dof_dict, local_pdens=0, verbose=False):
     """
+    Update the points_dict by appending new points.
+
     Parameters
     ----------
     eq : pycalphad.LightDataset
-        Point equilibrium result.
-    points_dict : dict
+        Point equilibrium result. Incompatible with xarray.Dataset objects.
+    points_dict : dict[str, np.ndarray]
         Map of phase name to array of points
-    dof_dict :
+    dof_dict : dict[str, list[int]]
         Map of phase name to the sublattice degrees of freedom.
-    verbose : bool, optional
+    local_pdens : Optional[int]
+        Point density for local sampling. If zero (the default) only the equilibrium site fractions will be added.
+    verbose : Optional[bool]
 
     """
     # Update the points dictionary with local samples around the equilibrium site fractions
@@ -45,7 +48,10 @@ def update_points(eq, points_dict, dof_dict, verbose=False):
             if verbose:
                 print(f'Adding points to {ph}. ', end='')
             dof = dof_dict[ph]
-            points_dict[ph] = np.concatenate([pts, local_sample(eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1), dof, pdens=20)], axis=0)
+            if local_pdens > 0:
+                points_dict[ph] = np.concatenate([pts, local_sample(eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1), dof, pdens=local_pdens)], axis=0)
+            else:
+                points_dict[ph] = np.concatenate([pts, eq.Y.squeeze()[vtx, :sum(dof)].reshape(1, -1)], axis=0)
 
 
 def simulate_scheil_solidification(dbf, comps, phases, composition,
@@ -106,8 +112,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
     if adaptive:
-        species = unpack_components(dbf, comps)
-        dof_dict = {ph: generate_dof(dbf.phases[ph], species)[1] for ph in phases}
+        dof_dict = {phase_name: list(map(len, mod.constituents)) for phase_name, mod in models.items()}
         eq_kwargs.setdefault('calc_opts', {})
         # TODO: handle per-phase/unpackable points and pdens
         if 'points' not in eq_kwargs['calc_opts']:
@@ -126,20 +131,10 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         comp_conds = liquid_comp
         fmt_comp_conds = ', '.join([f'{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
-        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
         if adaptive:
-            # Update the points dictionary with local samples around the equilibrium site fractions
-            points_dict = eq_kwargs['calc_opts']['points']
-            for vtx in range(eq.vertex.size):
-                masked = eq.isel(vertex=vtx)
-                ph = str(masked.Phase.values.squeeze())
-                pts = points_dict.get(ph)
-                if pts is not None:
-                    if verbose:
-                        print(f'Adding points to {ph}. ', end='')
-                    dof = dof_dict[ph]
-                    points_dict[ph] = np.concatenate([pts, local_sample(masked.Y.values.squeeze()[:sum(dof)].reshape(1, -1), dof, pdens=20)], axis=0)
-
+            _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose)
+        eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
         eq_phases = order_disorder_eq_phases(eq, ord_disord_dict)
         num_eq_phases = np.nansum(np.array([str(ph) for ph in eq_phases]) != '')
         new_phases_seen = set(eq_phases).difference(phases_seen)
@@ -273,12 +268,17 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     conds.update(composition)
 
 
-    if adaptive and ('points' in eq_kwargs.get('calc_opts', {})):
-        # Dynamically add points as the simulation runs
-        species = unpack_components(dbf, comps)
-        dof_dict = {ph: generate_dof(dbf.phases[ph], species)[1] for ph in phases}
-    else:
-        adaptive = False
+    if adaptive:
+        dof_dict = {phase_name: list(map(len, mod.constituents)) for phase_name, mod in models.items()}
+        eq_kwargs.setdefault('calc_opts', {})
+        # TODO: handle per-phase/unpackable points and pdens
+        if 'points' not in eq_kwargs['calc_opts']:
+            # construct a points dict for the user
+            points_dict = {}
+            for phase_name, mod in models.items():
+                pdens = eq_kwargs['calc_opts'].get('pdens', 50)
+                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens)
+            eq_kwargs['calc_opts']['points'] = points_dict
 
     temperatures = []
     x_liquid = {comp: [] for comp in independent_comps}
@@ -301,7 +301,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
         if adaptive:
             # Update the points dictionary with local samples around the equilibrium site fractions
-            update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
+            _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
         if liquid_phase_name in eq.Phase:
             # Add the liquid phase composition
             # TODO: will break in a liquid miscibility gap
@@ -323,7 +323,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
                 if adaptive:
                     # Update the points dictionary with local samples around the equilibrium site fractions
-                    update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
+                    _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
                 if not is_converged(eq):
                     if verbose:
                         comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
@@ -345,7 +345,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 print(f"Finshed binary search at T={conds[v.T]} with phases={found_phases} and NP={eq.NP.squeeze()[:len(found_phases)]}")
             if adaptive:
                 # Update the points dictionary with local samples around the equilibrium site fractions
-                update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
+                _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
             # Set the liquid phase composition to NaN
             for comp in independent_comps:
                 x_liquid[comp].append(float(np.nan))

@@ -164,7 +164,6 @@ def order_disorder_eq_phases(eq_result, order_disorder_dict):
 def local_sample(sitefracs, comp_count, pdens=100, stddev=0.05):
     """Sample from a normal distribution around the optimal site fractions
 
-
     Parameters
     ----------
     sitefracs : np.ndarray[:, :]
