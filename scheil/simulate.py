@@ -159,6 +159,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                     print(f'Stepping back and reducing step size.')
                 temp += step_temperature
                 step_temperature /= STEP_SCALE_FACTOR
+                temp -= step_temperature
                 continue
         # TODO: Will break if there is a liquid miscibility gap
         liquid_vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == liquid_phase_name))[0]
