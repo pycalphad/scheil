@@ -5,7 +5,8 @@ from pycalphad.codegen.callables import build_phase_records
 from pycalphad.core.calculate import _sample_phase_constitution
 from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases, point_sample
 from .solidification_result import SolidificationResult
-from .utils import order_disorder_dict, local_sample, order_disorder_eq_phases, get_phase_amounts
+from .utils import local_sample, get_phase_amounts
+from .ordering import create_ordering_records, rename_disordered_phases
 
 
 def is_converged(eq):
@@ -95,14 +96,14 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     MAXIMUM_STEP_SIZE_REDUCTION = 5.0
     T_STEP_ORIG = step_temperature
     phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
-    ord_disord_dict = order_disorder_dict(dbf, comps, phases)
+    ordering_records = create_ordering_records(dbf, comps, phases)
     models = instantiate_models(dbf, comps, phases)
     if verbose:
         print('building PhaseRecord objects... ', end='')
     phase_records = build_phase_records(dbf, comps, phases, [v.N, v.P, v.T], models)
     if verbose:
         print('done')
-    filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
+    filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
@@ -140,8 +141,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         if adaptive:
             _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose)
         eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
-        eq_phases = order_disorder_eq_phases(eq, ord_disord_dict)
-        num_eq_phases = np.nansum(np.array([str(ph) for ph in eq_phases]) != '')
+        eq = rename_disordered_phases(eq, ordering_records)
+        eq_phases = eq.Phase.values.squeeze().tolist()
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
             if verbose:
@@ -259,8 +260,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     """
     eq_kwargs = eq_kwargs or dict()
     phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
-    ord_disord_dict = order_disorder_dict(dbf, comps, phases)
-    filtered_disordered_phases = {ord_ph_dict['disordered_phase'] for ord_ph_dict in ord_disord_dict.values()}
+    ordering_records = create_ordering_records(dbf, comps, phases)
+    filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
     models = instantiate_models(dbf, comps, phases)
@@ -357,7 +358,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
 
         # Calculate fraction of solid and solid phase amounts
         current_fraction_solid = 0.0
-        current_cum_phase_amnts = get_phase_amounts(order_disorder_eq_phases(eq.get_dataset(), ord_disord_dict), eq.NP.squeeze(), solid_phases)
+        eq = rename_disordered_phases(eq.get_dataset(), ordering_records)
+        current_cum_phase_amnts = get_phase_amounts(eq.Phase.values.squeeze(), eq.NP.squeeze(), solid_phases)
         for solid_phase, amount in current_cum_phase_amnts.items():
             # Since the equilibrium calculations always give the "cumulative" phase amount,
             # we need to take the difference to get the instantaneous.
