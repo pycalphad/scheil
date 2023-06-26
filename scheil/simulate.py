@@ -211,6 +211,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         for comp in independent_comps:
             x_liquid[comp].append(np.nan)
         fraction_solid.append(1.0)
+        current_fraction_solid = float(fraction_solid[-1])
         temperatures.append(temp)
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
