@@ -132,6 +132,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     converged = False
     phases_seen = {liquid_phase_name, ''}
     liquid_comp = composition
+    current_fraction_solid = 0          
     while fraction_solid[-1] < 1:
         conds = {v.T: temp, v.P: 101325.0, v.N: 1.0}
         comp_conds = liquid_comp
