@@ -212,7 +212,6 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             x_liquid[comp].append(np.nan)
         fraction_solid.append(1.0)
         temperatures.append(temp)
-
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
         for solid_phase in solid_phases:
@@ -220,7 +219,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 amount = np.nansum(eq.isel(vertex=eq_phases.index(solid_phase))["NP"].values.squeeze())
                 try:
                     phase_amounts[solid_phase].append(float(amount) * (1 - current_fraction_solid))
-                except:
+                except UnboundLocalError:
                     phases_solid = set(eq_phases) - {''}
                     raise ValueError("input temperature didn't have liquid phase, it only contains "+', '.join(phases_solid))
             else:
