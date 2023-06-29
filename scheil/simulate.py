@@ -221,7 +221,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                     phase_amounts[solid_phase].append(float(amount) * (1 - current_fraction_solid))
                 except UnboundLocalError:
                     phases_solid = set(eq_phases) - {''}
-                    raise ValueError("input temperature didn't have liquid phase, it only contains "+', '.join(phases_solid))
+                    raise ValueError("The input temperature is too low to support a liquid phase, it only contains "+', '.join(phases_solid))
             else:
                 phase_amounts[solid_phase].append(0.0)
 
