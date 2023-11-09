@@ -110,6 +110,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
     fraction_solid = [0.0]
     temperatures = [temp]
+    eq_re=[]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
 
     if adaptive:
@@ -191,6 +192,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             phase_amounts[solid_phase].append(delta_fraction_solid)
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
+        eq_re.append(eq)
         NL = 1 - fraction_solid[-1]
         if verbose:
             phase_amnts = ' '.join([f'NP({ph})={amnt:0.3f}' for ph, amnt in found_phase_amounts])
@@ -212,6 +214,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             x_liquid[comp].append(np.nan)
         fraction_solid.append(1.0)
         temperatures.append(temp)
+        eq_re.append(eq)
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
         for solid_phase in solid_phases:
@@ -221,7 +224,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "scheil")
+    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "scheil", eq_re)
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
