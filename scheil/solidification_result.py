@@ -38,8 +38,10 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged, method):
+    def __init__(self, x_liquid, x_phases, Y_phases, fraction_solid, temperatures, phase_amounts, converged, method):
         self.x_liquid = x_liquid
+        self.x_phases = x_phases
+        self.Y_phases = Y_phases
         self.fraction_solid = fraction_solid
         self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
         self.temperatures = temperatures
@@ -57,6 +59,8 @@ class SolidificationResult():
     def to_dict(self):
         d = {
             'x_liquid': self.x_liquid,
+            'x_phases': self.x_phases,
+            'Y_phases': self.Y_phases, 
             'fraction_solid': self.fraction_solid,
             'temperatures': self.temperatures,
             'phase_amounts': self.phase_amounts,
@@ -68,9 +72,11 @@ class SolidificationResult():
     @classmethod
     def from_dict(cls, d):
         x_liquid = d['x_liquid']
+        x_phases = d['x_phases']
+        Y_phases = d['Y_phases']
         fraction_solid = d['fraction_solid']
         temperatures = d['temperatures']
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(x_liquid, fraction_solid, temperatures, phase_amounts, converged, method)
+        return cls(x_liquid, x_phases, Y_phases, fraction_solid, temperatures, phase_amounts, converged, method)

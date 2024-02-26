@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from collections import defaultdict
 from pycalphad import equilibrium, variables as v
 from pycalphad.codegen.callables import build_phase_records
 from pycalphad.core.calculate import _sample_phase_constitution
@@ -107,10 +108,17 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
+    
     x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
+    x_phases = defaultdict(dict)
+    Y_phases = defaultdict(dict)
+    for ph in solid_phases:
+        Y_phases[ph] = [np.nan]
+        for comp in independent_comps:
+            x_phases[ph][comp] = [np.nan]
 
     if adaptive:
         dof_dict = {phase_name: list(map(len, mod.constituents)) for phase_name, mod in models.items()}
@@ -183,12 +191,22 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         for solid_phase in solid_phases:
             if solid_phase not in eq_phases:
                 phase_amounts[solid_phase].append(0.0)
+                Y_phases[solid_phase].append(np.nan)
+                for comp in independent_comps:
+                    x_phases[solid_phase][comp].append(np.nan)
                 continue
             np_tieline = np.nansum(eq.isel(vertex=eq_phases.index(solid_phase))["NP"].values.squeeze())
             found_phase_amounts.append((solid_phase, np_tieline))
             delta_fraction_solid = (1 - current_fraction_solid) * np_tieline
             current_fraction_solid += delta_fraction_solid
             phase_amounts[solid_phase].append(delta_fraction_solid)
+            vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == solid_phase))[0]
+            Y_phases[solid_phase].append(list(eq["Y"].isel(vertex=vertex).squeeze().values))
+            for comp in independent_comps:
+                if np.sum(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values)==0:
+                    x_phases[solid_phase][comp].append(np.nan)
+                else:
+                    x_phases[solid_phase][comp].append(float(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values))
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
         NL = 1 - fraction_solid[-1]
@@ -224,8 +242,15 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                     raise ValueError("The input temperature is too low to support a liquid phase, it only contains "+', '.join(phases_solid))
             else:
                 phase_amounts[solid_phase].append(0.0)
+            vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == solid_phase))[0]
+            Y_phases[solid_phase].append(list(eq["Y"].isel(vertex=vertex).squeeze().values))
+            for comp in independent_comps:
+                if np.sum(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values)==0:
+                    x_phases[solid_phase][comp].append(np.nan)
+                else:
+                    x_phases[solid_phase][comp].append(float(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values))
 
-    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "scheil")
+    return SolidificationResult(x_liquid, x_phases, Y_phases, fraction_solid, temperatures, phase_amounts, converged, "scheil")
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
@@ -295,6 +320,12 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     fraction_solid = []
     phase_amounts = {ph: [] for ph in solid_phases}  # instantaneous phase amounts
     cum_phase_amounts = {ph: [] for ph in solid_phases}
+    x_phases = defaultdict(dict)
+    Y_phases = defaultdict(dict)
+    for ph in solid_phases:
+        Y_phases[ph] = []
+        for comp in independent_comps:
+            x_phases[ph][comp] = []
     converged = False
     current_T = start_temperature
     if verbose:
@@ -372,8 +403,16 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 phase_amounts[solid_phase].append(amount)
             else:
                 phase_amounts[solid_phase].append(amount - cum_phase_amounts[solid_phase][-2])
+            vertex = sorted(np.nonzero(eq["Phase"].values.squeeze().flat == solid_phase))[0]
+            Y_phases[solid_phase].append(list(eq["Y"].isel(vertex=vertex).squeeze().values))
+            for comp in independent_comps:
+                if np.sum(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values)==0:
+                    x_phases[solid_phase][comp].append(np.nan)
+                else:
+                    x_phases[solid_phase][comp].append(float(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values))
             current_fraction_solid += amount
+            
         fraction_solid.append(current_fraction_solid)
 
     converged = True if np.isclose(fraction_solid[-1], 1.0) else False
-    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "equilibrium")
+    return SolidificationResult(x_liquid, x_phases, Y_phases, fraction_solid, temperatures, phase_amounts, converged, "equilibrium")
