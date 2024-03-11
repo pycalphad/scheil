@@ -26,6 +26,9 @@ def test_scheil_solidification_result_properties():
     assert num_temperatures == len(sol_res.fraction_solid)
     assert all([num_temperatures == len(nphase) for nphase in sol_res.phase_amounts.values()])
     assert all([num_temperatures == len(liq_comps) for liq_comps in sol_res.x_liquid.values()])
+    for phase in sol_res.x_phases:
+        assert all([num_temperatures == len(phase_comps) for phase_comps in sol_res.x_phases[phase].values()])
+    assert all([num_temperatures == len(phase_sf) for phase_sf in sol_res.Y_phases.values()])    
     assert all([num_temperatures == len(nphase) for nphase in sol_res.cum_phase_amounts.values()])
 
     # final phase amounts are correct
@@ -48,6 +51,8 @@ def test_scheil_solidification_result_properties():
     assert rnd_trip_sol_res.fraction_liquid == sol_res.fraction_liquid
     assert rnd_trip_sol_res.fraction_solid == sol_res.fraction_solid
     assert rnd_trip_sol_res.x_liquid == sol_res.x_liquid
+    assert rnd_trip_sol_res.x_phases == sol_res.x_phases
+    assert rnd_trip_sol_res.Y_phases == sol_res.Y_phases
     assert rnd_trip_sol_res.cum_phase_amounts == sol_res.cum_phase_amounts
     assert rnd_trip_sol_res.phase_amounts == sol_res.phase_amounts
     assert rnd_trip_sol_res.temperatures == sol_res.temperatures
