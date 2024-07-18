@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from pycalphad import equilibrium, variables as v
-from pycalphad.codegen.callables import build_phase_records
+from pycalphad.codegen.phase_record_factory import PhaseRecordFactory
 from pycalphad.core.calculate import _sample_phase_constitution
 from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases, point_sample
 from .solidification_result import SolidificationResult
@@ -97,10 +97,12 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     T_STEP_ORIG = step_temperature
     phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
     ordering_records = create_ordering_records(dbf, comps, phases)
-    models = instantiate_models(dbf, comps, phases)
+    if 'model' not in eq_kwargs:
+        eq_kwargs['model'] = instantiate_models(dbf, comps, phases)
+        eq_kwargs['phase_records'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['model'])
+    models = eq_kwargs['model']
     if verbose:
         print('building PhaseRecord objects... ', end='')
-    phase_records = build_phase_records(dbf, comps, phases, [v.N, v.P, v.T], models)
     if verbose:
         print('done')
     filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
@@ -124,7 +126,9 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 if verbose:
                     print(phase_name, end=' ')
                 pdens = eq_kwargs['calc_opts'].get('pdens', 50)
-                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens)
+                # Assume no phase_local_conditions, this is probably okay since there's no option to add additional conditions here
+                # And I don't think it would make too much sense to have phase local conditions for scheil/eq solidification anyways
+                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens, phase_local_conditions = {})
             eq_kwargs['calc_opts']['points'] = points_dict
             if verbose:
                 print('done')
@@ -137,7 +141,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         comp_conds = liquid_comp
         fmt_comp_conds = ', '.join([f'{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
-        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
         if adaptive:
             _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose)
         eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
@@ -264,10 +268,12 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
-    models = instantiate_models(dbf, comps, phases)
+    if 'model' not in eq_kwargs:
+        eq_kwargs['model'] = instantiate_models(dbf, comps, phases)
+        eq_kwargs['phase_records'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['model'])
+    models = eq_kwargs['model']
     if verbose:
         print('building PhaseRecord objects... ', end='')
-    phase_records = build_phase_records(dbf, comps, phases, [v.N, v.P, v.T], models)
     if verbose:
         print('done')
     conds = {v.P: 101325, v.N: 1.0}
@@ -283,7 +289,9 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             points_dict = {}
             for phase_name, mod in models.items():
                 pdens = eq_kwargs['calc_opts'].get('pdens', 50)
-                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens)
+                # Assume no phase_local_conditions, this is probably okay since there's no option to add additional conditions here
+                # And I don't think it would make too much sense to have phase local conditions for scheil/eq solidification anyways
+                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens, phase_local_conditions = {})
             eq_kwargs['calc_opts']['points'] = points_dict
 
     temperatures = []
@@ -300,7 +308,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         conds[v.T] = current_T
         if verbose:
             print(f'{current_T} ', end='')
-        eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
         if not is_converged(eq):
             if verbose:
                 comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
@@ -326,7 +334,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             while (T_high - T_low) > binary_search_tol:
                 bin_search_T = (T_high - T_low) * 0.5 + T_low
                 conds[v.T] = bin_search_T
-                eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
+                eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
                 if adaptive:
                     # Update the points dictionary with local samples around the equilibrium site fractions
                     _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
@@ -341,7 +349,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             converged = True
             conds[v.T] = T_low
             temperatures.append(T_low)
-            eq = equilibrium(dbf, comps, phases, conds, model=models, phase_records=phase_records, to_xarray=False, **eq_kwargs)
+            eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
             if not is_converged(eq):
                 if verbose:
                     comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
