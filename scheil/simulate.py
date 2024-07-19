@@ -128,7 +128,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 pdens = eq_kwargs['calc_opts'].get('pdens', 50)
                 # Assume no phase_local_conditions, this is probably okay since there's no option to add additional conditions here
                 # And I don't think it would make too much sense to have phase local conditions for scheil/eq solidification anyways
-                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens, phase_local_conditions = {})
+                points_dict[phase_name] = _sample_phase_constitution(mod, point_sample, True, pdens=pdens, phase_local_conditions={})
             eq_kwargs['calc_opts']['points'] = points_dict
             if verbose:
                 print('done')
