@@ -38,7 +38,7 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged, method):
+    def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged, method,eq_re):
         self.x_liquid = x_liquid
         self.fraction_solid = fraction_solid
         self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
@@ -47,6 +47,7 @@ class SolidificationResult():
         self.cum_phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
         self.converged = converged
         self.method = method
+        self.eq_re = eq_re
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -62,6 +63,7 @@ class SolidificationResult():
             'phase_amounts': self.phase_amounts,
             'converged': self.converged,
             'method': self.method,
+            'eq':self.eq_re
         }
         return d
 
