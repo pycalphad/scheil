@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class SolidificationResult():
@@ -38,8 +39,9 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged, method):
-        self.x_liquid = x_liquid
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+        self.phase_compositions = phase_compositions
+        self.x_liquid = phase_compositions["LIQUID"]
         self.fraction_solid = fraction_solid
         self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
         self.temperatures = temperatures
@@ -74,3 +76,27 @@ class SolidificationResult():
         converged = d['converged']
         method = d['method']
         return cls(x_liquid, fraction_solid, temperatures, phase_amounts, converged, method)
+
+    def to_dataframe(self, include_zero_phases=True):
+        """
+        Parameters
+        ----------
+        include_zero_phases : Optional[bool]
+            If True (the default), phases that never become stable in the simulation will be included.
+        """
+        data_dict = {}
+        data_dict["Temperature (K)"] = self.temperatures
+        liquid_phase_name = list(set(self.phase_compositions.keys()) - set(self.cum_phase_amounts.keys()))[0]  # sort of a hack because we don't explictly track liquid phase name
+        data_dict[f"NP({liquid_phase_name})"] = self.fraction_liquid
+        stable_phases = {liquid_phase_name}
+        for phase_name, vals in sorted(self.cum_phase_amounts.items()):
+            if vals[-1] > 0: # vals[-2] handles liquid case
+                stable_phases.add(phase_name)
+            if phase_name in stable_phases or include_zero_phases:
+                data_dict[f"NP({phase_name})"] = vals
+        for phase_name, phase_compositions in self.phase_compositions.items():
+            if phase_name in stable_phases or include_zero_phases:
+                for comp, vals in phase_compositions.items():
+                    data_dict[f"X({phase_name},{comp})"] = vals
+        df = pd.DataFrame(data_dict)
+        return df

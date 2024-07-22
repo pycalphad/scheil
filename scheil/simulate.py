@@ -109,10 +109,12 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
+    pure_comps = sorted(set(comps) - {"VA"})
     x_liquid = {comp: [composition[v.X(comp)]] for comp in independent_comps}
     fraction_solid = [0.0]
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
+    phase_compositions = {ph: {comp: [np.nan] for comp in pure_comps} for ph in sorted(set(solid_phases) | {liquid_phase_name})}
 
     if adaptive:
         dof_dict = {phase_name: list(map(len, mod.constituents)) for phase_name, mod in models.items()}
@@ -181,6 +183,22 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             x = float(eq["X"].isel(vertex=liquid_vertex).squeeze().sel(component=comp).values)
             x_liquid[comp].append(x)
             liquid_comp[v.X(comp)] = x
+        phase_compositions_accounted_for = {''}
+        for vertex in range(eq.vertex.size):
+            phase_name = str(eq.Phase.squeeze().values[vertex])
+            if phase_name in phase_compositions_accounted_for:
+                # Skip phases we have already counted
+                # this will _not_ count phases with a miscibility gap! we need to include pycalphad multiplicity support
+                continue
+            for comp in pure_comps:
+                x = float(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values)
+                phase_compositions[phase_name][comp].append(x)
+            phase_compositions_accounted_for.add(phase_name)
+        # pad all other (unstable) phases with NaN
+        unseen_phases = (set(solid_phases) | {liquid_phase_name}) - phase_compositions_accounted_for
+        for phase_name in unseen_phases:
+            for comp in pure_comps:
+                phase_compositions[phase_name][comp].append(np.nan)
         np_liq = np.nansum(eq.where(eq["Phase"] == liquid_phase_name).NP.values)
         current_fraction_solid = float(fraction_solid[-1])
         found_phase_amounts = [(liquid_phase_name, np_liq)]  # tuples of phase name, amount
@@ -214,6 +232,23 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     if fraction_solid[-1] < 1:
         for comp in independent_comps:
             x_liquid[comp].append(np.nan)
+        # one last pass through phase compositions, note that this is repeated from above, could use a refactor
+        phase_compositions_accounted_for = {''}
+        for vertex in range(eq.vertex.size):
+            phase_name = str(eq.Phase.squeeze().values[vertex])
+            if phase_name in phase_compositions_accounted_for:
+                # Skip phases we have already counted
+                # this will _not_ count phases with a miscibility gap! we need to include pycalphad multiplicity support
+                continue
+            for comp in pure_comps:
+                x = float(eq["X"].isel(vertex=vertex).squeeze().sel(component=comp).values)
+                phase_compositions[phase_name][comp].append(x)
+            phase_compositions_accounted_for.add(phase_name)
+        # pad all other (unstable) phases with NaN
+        unseen_phases = (set(solid_phases) | {liquid_phase_name}) - phase_compositions_accounted_for
+        for phase_name in unseen_phases:
+            for comp in pure_comps:
+                phase_compositions[phase_name][comp].append(np.nan)
         fraction_solid.append(1.0)
         temperatures.append(temp)
         # set the final phase amount to the phase fractions in the eutectic
@@ -225,7 +260,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    return SolidificationResult(x_liquid, fraction_solid, temperatures, phase_amounts, converged, "scheil")
+    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "scheil")
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
