@@ -7,7 +7,7 @@ class SolidificationResult():
 
     Parameters
     ----------
-    x_liquid : Dict[str, List[float]]
+    phase_compositions : Mapping[PhaseName, Mapping[ComponentName, List[float]]]
         Mapping of component name to composition at each temperature.
     fraction_solid : List[float]
         Fraction of solid at each temperature.
@@ -26,7 +26,7 @@ class SolidificationResult():
 
     Attributes
     ----------
-    x_liquid : Dict[str, List[float]
+    phase_compositions : Mapping[PhaseName, Mapping[ComponentName, List[float]]]
     fraction_solid : List[float]
     temperatures : List[float]
     phase_amounts : Dict[str, float]
@@ -60,7 +60,7 @@ class SolidificationResult():
 
     def to_dict(self):
         d = {
-            'x_liquid': self.x_liquid,
+            'phase_compositions': self.phase_compositions,
             'fraction_solid': self.fraction_solid,
             'temperatures': self.temperatures,
             'phase_amounts': self.phase_amounts,
@@ -71,13 +71,13 @@ class SolidificationResult():
 
     @classmethod
     def from_dict(cls, d):
-        x_liquid = d['x_liquid']
+        phase_compositions = d['phase_compositions']
         fraction_solid = d['fraction_solid']
         temperatures = d['temperatures']
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(x_liquid, fraction_solid, temperatures, phase_amounts, converged, method)
+        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method)
 
     def to_dataframe(self, include_zero_phases=True):
         """
