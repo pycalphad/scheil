@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class SolidificationResult():
@@ -6,7 +7,7 @@ class SolidificationResult():
 
     Parameters
     ----------
-    x_liquid : Dict[str, List[float]]
+    phase_compositions : Mapping[PhaseName, Mapping[ComponentName, List[float]]]
         Mapping of component name to composition at each temperature.
     fraction_solid : List[float]
         Fraction of solid at each temperature.
@@ -25,7 +26,7 @@ class SolidificationResult():
 
     Attributes
     ----------
-    x_liquid : Dict[str, List[float]
+    phase_compositions : Mapping[PhaseName, Mapping[ComponentName, List[float]]]
     fraction_solid : List[float]
     temperatures : List[float]
     phase_amounts : Dict[str, float]
@@ -38,13 +39,16 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, x_liquid, fraction_solid, temperatures, phase_amounts, converged, method):
-        self.x_liquid = x_liquid
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+        # sort of a hack because we don't explictly track liquid phase name
+        self.phase_compositions = phase_compositions
         self.fraction_solid = fraction_solid
         self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
         self.temperatures = temperatures
         self.phase_amounts = phase_amounts
         self.cum_phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
+        self.liquid_phase_name = list(set(self.phase_compositions.keys()) - set(self.cum_phase_amounts.keys()))[0]
+        self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
 
@@ -56,7 +60,7 @@ class SolidificationResult():
 
     def to_dict(self):
         d = {
-            'x_liquid': self.x_liquid,
+            'phase_compositions': self.phase_compositions,
             'fraction_solid': self.fraction_solid,
             'temperatures': self.temperatures,
             'phase_amounts': self.phase_amounts,
@@ -67,10 +71,33 @@ class SolidificationResult():
 
     @classmethod
     def from_dict(cls, d):
-        x_liquid = d['x_liquid']
+        phase_compositions = d['phase_compositions']
         fraction_solid = d['fraction_solid']
         temperatures = d['temperatures']
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(x_liquid, fraction_solid, temperatures, phase_amounts, converged, method)
+        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method)
+
+    def to_dataframe(self, include_zero_phases=True):
+        """
+        Parameters
+        ----------
+        include_zero_phases : Optional[bool]
+            If True (the default), phases that never become stable in the simulation will be included.
+        """
+        data_dict = {}
+        data_dict["Temperature (K)"] = self.temperatures
+        data_dict[f"NP({self.liquid_phase_name})"] = self.fraction_liquid
+        stable_phases = {self.liquid_phase_name}
+        for phase_name, vals in sorted(self.cum_phase_amounts.items()):
+            if vals[-1] > 0: # vals[-2] handles liquid case
+                stable_phases.add(phase_name)
+            if phase_name in stable_phases or include_zero_phases:
+                data_dict[f"NP({phase_name})"] = vals
+        for phase_name, phase_compositions in self.phase_compositions.items():
+            if phase_name in stable_phases or include_zero_phases:
+                for comp, vals in phase_compositions.items():
+                    data_dict[f"X({phase_name},{comp})"] = vals
+        df = pd.DataFrame(data_dict)
+        return df
