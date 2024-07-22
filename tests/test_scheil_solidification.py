@@ -54,6 +54,10 @@ def test_scheil_solidification_result_properties():
     assert rnd_trip_sol_res.converged == sol_res.converged
     assert rnd_trip_sol_res.method == sol_res.method
 
+    # Test to_dataframe doesn't raise
+    sol_res.to_dataframe(include_zero_phases=True)
+    sol_res.to_dataframe(include_zero_phases=False)
+
 
 def test_equilibrium_solidification_result_properties():
     """Test that SolidificationResult objects produced by equilibrium have the required properties."""
@@ -76,7 +80,7 @@ def test_equilibrium_solidification_result_properties():
     assert num_temperatures == len(sol_res.fraction_solid)
     assert all([num_temperatures == len(np) for np in sol_res.phase_amounts.values()])
     assert all([num_temperatures == len(liq_comps) for liq_comps in sol_res.phase_compositions[sol_res.liquid_phase_name].values()])
-    assert all([(num_temperatures, len(nphase)) for nphase in sol_res.cum_phase_amounts.values()])
+    assert all([(num_temperatures == len(nphase)) for nphase in sol_res.cum_phase_amounts.values()])
     # The final cumulative solid phase amounts is 1.0
     assert np.isclose(np.sum([amnts[-1] for amnts in sol_res.cum_phase_amounts.values()]), 1.0)
     # The final instantaneous phase amounts is not 1.0 (only the amount of new solid phase added
@@ -98,3 +102,7 @@ def test_equilibrium_solidification_result_properties():
     assert rnd_trip_sol_res.temperatures == sol_res.temperatures
     assert rnd_trip_sol_res.converged == sol_res.converged
     assert rnd_trip_sol_res.method == sol_res.method
+
+    # Test to_dataframe doesn't raise
+    sol_res.to_dataframe(include_zero_phases=True)
+    sol_res.to_dataframe(include_zero_phases=False)
