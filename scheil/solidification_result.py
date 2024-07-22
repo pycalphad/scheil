@@ -40,13 +40,15 @@ class SolidificationResult():
     """
 
     def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+        # sort of a hack because we don't explictly track liquid phase name
         self.phase_compositions = phase_compositions
-        self.x_liquid = phase_compositions["LIQUID"]
         self.fraction_solid = fraction_solid
         self.fraction_liquid = (1.0 - np.array(fraction_solid)).tolist()
         self.temperatures = temperatures
         self.phase_amounts = phase_amounts
         self.cum_phase_amounts = {ph: np.cumsum(amnts).tolist() for ph, amnts in phase_amounts.items()}
+        self.liquid_phase_name = list(set(self.phase_compositions.keys()) - set(self.cum_phase_amounts.keys()))[0]
+        self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
 
@@ -86,9 +88,8 @@ class SolidificationResult():
         """
         data_dict = {}
         data_dict["Temperature (K)"] = self.temperatures
-        liquid_phase_name = list(set(self.phase_compositions.keys()) - set(self.cum_phase_amounts.keys()))[0]  # sort of a hack because we don't explictly track liquid phase name
-        data_dict[f"NP({liquid_phase_name})"] = self.fraction_liquid
-        stable_phases = {liquid_phase_name}
+        data_dict[f"NP({self.liquid_phase_name})"] = self.fraction_liquid
+        stable_phases = {self.liquid_phase_name}
         for phase_name, vals in sorted(self.cum_phase_amounts.items()):
             if vals[-1] > 0: # vals[-2] handles liquid case
                 stable_phases.add(phase_name)
