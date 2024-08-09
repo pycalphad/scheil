@@ -19,7 +19,7 @@ setup(
         'numpy',
         'scipy',
         'setuptools_scm[toml]>=6.0',
-        'pycalphad>=0.10.0',
+        'pycalphad>=0.11.0',
     ],
     extras_require={
         'dev': [
