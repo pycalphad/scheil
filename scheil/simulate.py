@@ -5,7 +5,7 @@ from pycalphad import equilibrium, variables as v
 from pycalphad.core.light_dataset import LightDataset
 from pycalphad.codegen.phase_record_factory import PhaseRecordFactory
 from pycalphad.core.calculate import _sample_phase_constitution
-from pycalphad.core.utils import instantiate_models, unpack_components, filter_phases, point_sample
+from pycalphad.core.utils import instantiate_models, unpack_species, filter_phases, point_sample
 from .solidification_result import SolidificationResult
 from .utils import local_sample, get_phase_amounts
 from .ordering import create_ordering_records, rename_disordered_phases
@@ -125,7 +125,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     STEP_SCALE_FACTOR = 1.2  # How much to try to adapt the temperature step by
     MAXIMUM_STEP_SIZE_REDUCTION = 5.0
     T_STEP_ORIG = step_temperature
-    phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
+    phases = filter_phases(dbf, unpack_species(dbf, comps), phases)
     ordering_records = create_ordering_records(dbf, comps, phases)
     if 'model' not in eq_kwargs:
         eq_kwargs['model'] = instantiate_models(dbf, comps, phases)
@@ -178,6 +178,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
         eq = rename_disordered_phases(eq, ordering_records)
         eq_phases = eq.Phase.values.squeeze().tolist()
+        print("eq_phases", eq_phases)
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
             if verbose:
@@ -293,7 +294,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
 
     """
     eq_kwargs = eq_kwargs or dict()
-    phases = filter_phases(dbf, unpack_components(dbf, comps), phases)
+    phases = filter_phases(dbf, unpack_species(dbf, comps), phases)
     ordering_records = create_ordering_records(dbf, comps, phases)
     filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})

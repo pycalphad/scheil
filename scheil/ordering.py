@@ -14,7 +14,7 @@ import itertools
 from collections import defaultdict
 import numpy as np
 import xarray as xr
-from pycalphad.core.utils import unpack_components
+from pycalphad.core.utils import unpack_species
 
 @dataclass
 class OrderingRecord:
@@ -74,7 +74,7 @@ def create_ordering_records(dbf, comps, phases):
     1. The phase is the ordered part of an order-disorder model
     2. The equivalent sublattices have all the same number of elements
     """
-    species = unpack_components(dbf, comps)
+    species = unpack_species(dbf, comps)
     ordering_records = []
     for phase_name in phases:
         phase_obj = dbf.phases[phase_name]
