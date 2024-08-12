@@ -15,7 +15,6 @@ setup(
     long_description_content_type='text/x-rst',
     url='https://scheil.readthedocs.io/',
     install_requires=[
-        'importlib_metadata',  # drop for Python>=3.8
         'numpy',
         'scipy',
         'setuptools_scm[toml]>=6.0',

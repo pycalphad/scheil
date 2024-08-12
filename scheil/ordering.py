@@ -118,7 +118,7 @@ def rename_disordered_phases(eq_result, ordering_records):
     --------
     >>> from pycalphad import Database, equilibrium, variables as v
     >>> import pycalphad.tests.databases
-    >>> from importlib_resources import files
+    >>> from importlib.resources import files
     >>> dbf = Database(str(files(pycalphad.tests.databases).joinpath("alcfe_b2.tdb")))
     >>> comps = ['AL', 'FE', 'VA']
     >>> phases = list(dbf.phases.keys())
