@@ -2,6 +2,18 @@
 Changelog
 =========
 
+0.2.0 (2024-08-12)
+==================
+
+* Update for PyCalphad Workspace compatibility, introducing a new minimum version requirement of PyCalphad 0.11 (:issue:`34`)
+* Generalize phase composition support to include phase composition of all solid
+  phases as well as the (previously supported) liquid phase. Note that we don't
+  yet support phase multiplicities, so miscibility gaps _will_ give potentially
+  meaningless results. (:issue:`35`)
+* Improve handling for ordered phases using the partitioned model (:issue:`24`)
+* Performance and accuracy improvements by using adaptive sampling by default (:issue:`22`)
+* Bug fix to prrevent double counting when step size is reduced
+
 0.1.6 (2021-08-09)
 ==================
 

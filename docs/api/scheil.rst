@@ -4,6 +4,14 @@ scheil package
 Submodules
 ----------
 
+scheil.ordering module
+----------------------
+
+.. automodule:: scheil.ordering
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 scheil.simulate module
 ----------------------
 
