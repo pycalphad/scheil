@@ -178,7 +178,6 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
         eq = rename_disordered_phases(eq, ordering_records)
         eq_phases = eq.Phase.values.squeeze().tolist()
-        print("eq_phases", eq_phases)
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
             if verbose:
