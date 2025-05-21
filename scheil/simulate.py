@@ -88,7 +88,8 @@ def _update_phase_compositions(phase_compositions: Mapping[str, Mapping[str, Lis
 def simulate_scheil_solidification(dbf, comps, phases, composition,
                                    start_temperature, step_temperature=1.0,
                                    liquid_phase_name='LIQUID', eq_kwargs=None,
-                                   stop=0.0001, verbose=False, adaptive=True):
+                                   stop=0.0001, verbose=False, adaptive=True,
+                                   save_equilibrium_results=False):
     """Perform a Scheil-Gulliver solidification simulation.
 
     Parameters
@@ -115,6 +116,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     adaptive: Optional[bool]
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
+    save_equilibrium_results: Optional[bool]
+        Whether to save the equilibrium results at each step to SolidificationResult.
 
     Returns
     -------
@@ -142,6 +145,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     pure_comps = sorted(set(comps) - {"VA"})
     fraction_solid = [0.0]
     temperatures = [temp]
+    equilibrium_results = []
     phase_amounts = {ph: [0.0] for ph in solid_phases}
     phase_compositions = {ph: {comp: [np.nan] for comp in pure_comps} for ph in sorted(set(solid_phases) | {liquid_phase_name})}
 
@@ -172,7 +176,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         comp_conds = liquid_comp
         fmt_comp_conds = ', '.join([f'{c}={val:0.2f}' for c, val in comp_conds.items()])
         conds.update(comp_conds)
-        eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
+        eq = equilibrium(dbf, comps, phases, conds, to_xarray=False,
+                         output=('GM', 'HM', 'CPM'), **eq_kwargs)
         if adaptive:
             _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose)
         eq = eq.get_dataset()  # convert LightDataset to Dataset for fancy indexing
@@ -226,6 +231,14 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             phase_amounts[solid_phase].append(delta_fraction_solid)
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
+
+        if save_equilibrium_results:
+            if len(equilibrium_results) == 0:
+                # Add the first step of liquid equilibrium results twice.
+                equilibrium_results.append(eq)
+                equilibrium_results.append(eq)
+            else:
+                equilibrium_results.append(eq)
         NL = 1 - fraction_solid[-1]
         if verbose:
             phase_amnts = ' '.join([f'NP({ph})={amnt:0.3f}' for ph, amnt in found_phase_amounts])
@@ -246,6 +259,9 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         _update_phase_compositions(phase_compositions, eq)
         fraction_solid.append(1.0)
         temperatures.append(temp)
+
+        if save_equilibrium_results:
+            equilibrium_results.append(eq)
         # set the final phase amount to the phase fractions in the eutectic
         # this method gives the sum total phase amounts of 1.0 by construction
         for solid_phase in solid_phases:
@@ -255,7 +271,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             else:
                 phase_amounts[solid_phase].append(0.0)
 
-    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "scheil")
+    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts,
+                                converged, "scheil", equilibrium_results=equilibrium_results)
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,

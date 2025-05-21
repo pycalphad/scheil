@@ -23,6 +23,8 @@ class SolidificationResult():
         For equilibrium: True if no liquid remains, False otherwise.
     method : str
         Method used to create the solidification result, should be "scheil" or "equilibrium"
+    equilibrium_results: list[LightDataset] or None
+        List of LightDataset for equilibrium results.
 
     Attributes
     ----------
@@ -36,10 +38,12 @@ class SolidificationResult():
     cum_phase_amounts : Dict[str, list]
         Map of {phase_name: amount_list} for solid phases where amount_list is
         a list of cumulative phase amounts at each temperature.
-
+    equilibrium_results: list[LightDataset]
+        List of LightDataset for equilibrium results.
     """
 
-    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts,
+                 converged, method, equilibrium_results=None):
         # sort of a hack because we don't explictly track liquid phase name
         self.phase_compositions = phase_compositions
         self.fraction_solid = fraction_solid
@@ -51,6 +55,10 @@ class SolidificationResult():
         self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
+
+        if equilibrium_results is None:
+            equilibrium_results = []
+        self.equilibrium_results = equilibrium_results
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -66,6 +74,7 @@ class SolidificationResult():
             'phase_amounts': self.phase_amounts,
             'converged': self.converged,
             'method': self.method,
+            'equilibrium_results': self.equilibrium_results
         }
         return d
 
@@ -77,7 +86,9 @@ class SolidificationResult():
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method)
+        equilibrium_results = d.get("equilibrium_results")
+        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts,
+                   converged, method, equilibrium_results)
 
     def to_dataframe(self, include_zero_phases=True):
         """
