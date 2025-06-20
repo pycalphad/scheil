@@ -15,7 +15,7 @@ jobs:
         pycalphad_develop_version: [true, false]
 
     steps:
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # fetch the entire repo history, required to guarantee setuptools_scm will pick up tags
     - name: Set up Python
