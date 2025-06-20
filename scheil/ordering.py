@@ -9,12 +9,15 @@ information about the ordered and disordered phase.
 """
 
 from dataclasses import dataclass
-from typing import Sequence, List
+from typing import Sequence
 import itertools
 from collections import defaultdict
 import numpy as np
 import xarray as xr
+from pycalphad import Workspace
 from pycalphad.core.utils import unpack_species
+
+from .solidification_result import PhaseName
 
 @dataclass
 class OrderingRecord:
@@ -49,7 +52,7 @@ class OrderingRecord:
         return True
 
 
-def create_ordering_records(dbf, comps, phases):
+def create_ordering_records(dbf, comps, phases) -> list[OrderingRecord]:
     """Return a dictionary with the sublattice degrees of freedom and equivalent
     sublattices for order/disorder phases
 
@@ -144,3 +147,35 @@ def rename_disordered_phases(eq_result, ordering_records):
         # phase everywhere the mask is true and use the existing value otherwise
         eq_result['Phase'] = xr.where(disordered_mask, ord_rec.disordered_phase_name, eq_result.Phase)
     return eq_result
+
+
+def _wks_ordering_rename_map(wks: Workspace, ordering_records: list[OrderingRecord]):
+    """Create a rename map of ordered phase names to disordered phase names (as applicable) for the current Workspace solution."""
+    ordering_dict: dict[PhaseName, OrderingRecord] = {ord.ordered_phase_name: ord for ord in ordering_records}
+    # We expect that wks phases are the ordered versions.
+    rename_dict = {}
+    for phase_name, phase_multiplicity in wks._detect_phase_multiplicity().items():
+        if phase_name not in ordering_dict:
+            # skip phase doesn't have an ordering record entry, so it isn't in scope for this function as rename candidate
+            continue
+        ord_rec = ordering_dict[phase_name]
+        if phase_multiplicity == 0:
+            # skip because phase isn't stable
+            continue
+        # since Y(phase,*,*) can return multiple phases, we set up a dictionary to handle the site fraction array of one phase at a time
+        phase_sitefracs_vec: dict[PhaseName, ArrayLike] = {}
+        # extract all the site fractions for each distinct phase (w/ multiplicity)
+        for sf, amnt in wks.get_dict(f"Y({phase_name},*,*)").items():
+            sf: v.Y
+            phase_name_with_multiplicity = sf.phase_name
+            phase_sitefracs_vec.setdefault(phase_name_with_multiplicity, [])
+            sortkey_amnt = (sf.sublattice_index, sf.species, amnt)
+            phase_sitefracs_vec[phase_name_with_multiplicity].append(sortkey_amnt)
+        # sort the site fractions by the sortkey and extract the value (at the end)
+        phase_sitefracs_vec = {phase_name_with_multiplicity: np.asarray([x[-1] for x in sorted(vec)]) for phase_name_with_multiplicity, vec in phase_sitefracs_vec.items()}
+        # If we detect that a phase labeled as ordered is actually disordered,
+        # then we add to the disordered multiplicity, and reduce the multiplicity of the ordered version.
+        for phase_name_with_multiplicity, sitefracs in phase_sitefracs_vec.items():
+            if ord_rec.is_disordered(sitefracs):
+                rename_dict[phase_name_with_multiplicity] = ord_rec.disordered_phase_name
+    return rename_dict

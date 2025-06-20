@@ -1,16 +1,17 @@
 import sys
 from typing import Mapping, List
+from numpy.typing import ArrayLike
 import numpy as np
-from pycalphad import equilibrium, variables as v, Workspace
+from pycalphad import variables as v, Workspace
 from pycalphad.codegen.phase_record_factory import PhaseRecordFactory
 from pycalphad.core.calculate import _sample_phase_constitution
 from pycalphad.core.utils import instantiate_models, unpack_species, filter_phases, point_sample
-from .solidification_result import SolidificationResult
+from .solidification_result import SolidificationResult, PhaseName
 from .utils import local_sample, get_phase_amounts
-from .ordering import create_ordering_records, rename_disordered_phases
+from .ordering import create_ordering_records, rename_disordered_phases, _wks_ordering_rename_map
 
 
-def is_converged(eq):
+def is_converged(wks):
     """
     Return true if there are phase fractions that are non-NaN
 
@@ -19,7 +20,7 @@ def is_converged(eq):
     eq : pycalphad.LightDataset
 
     """
-    if np.any(~np.isnan(eq.NP)):
+    if np.any(~np.isnan(wks.get("NP(*)"))):
         return True
     return False
 
@@ -69,7 +70,7 @@ def _get_stable_phases_with_multiplicities(wks: Workspace):
     return multiplicity_aware_phase_names
 
 
-def _update_phase_compositions(phase_compositions: Mapping[str, Mapping[str, List[float]]], wks: Workspace):
+def _update_phase_compositions(phase_compositions: Mapping[PhaseName, Mapping[str, List[float]]], wks: Workspace, ordering_phase_name_remap: dict[PhaseName, PhaseName]):
     """
     Parameters
     ----------
@@ -84,6 +85,7 @@ def _update_phase_compositions(phase_compositions: Mapping[str, Mapping[str, Lis
 
     # we need to handle the fact that new phases can come up (due to multiplicities) and pad those out with NaN appropriately
     for phase_name in multiplicity_aware_phase_names:
+        phase_name = ordering_phase_name_remap.get(phase_name, phase_name)  # we can update phase_name directly because we don't ever call into PyCalphad (using the unmangled name)
         if phase_name in phase_compositions:
             continue
         # at this point, we haven't modified phase_compositions at all, so the shapes should be the same
@@ -95,11 +97,13 @@ def _update_phase_compositions(phase_compositions: Mapping[str, Mapping[str, Lis
 
     # append values for stable phases
     for phase_name in multiplicity_aware_phase_names:
+        ord_aware_phase_name = ordering_phase_name_remap.get(phase_name, phase_name)  # we need special treatment because we call PyCalphad with the original composition set name
         for component in components:
-            phase_compositions[phase_name][component].append(float(wks.get(f"X({phase_name},{component})")))
+            phase_compositions[ord_aware_phase_name][component].append(float(wks.get(f"X({phase_name},{component})")))
 
     # pad all other (unstable) phases with NaN
-    for phase_name in set(phase_compositions.keys()) - set(multiplicity_aware_phase_names):
+    stable_phases = set(multiplicity_aware_phase_names) - set(ordering_phase_name_remap.keys()) | set(ordering_phase_name_remap.values())
+    for phase_name in set(phase_compositions.keys()) - stable_phases:
         for component in components:
             phase_compositions[phase_name][component].append(np.nan)
 
@@ -147,10 +151,12 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     T_STEP_ORIG = step_temperature
     phases = filter_phases(dbf, unpack_species(dbf, comps), phases)
     ordering_records = create_ordering_records(dbf, comps, phases)
-    if 'model' not in eq_kwargs:
-        eq_kwargs['model'] = instantiate_models(dbf, comps, phases)
-        eq_kwargs['phase_records'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['model'])
-    models = eq_kwargs['model']
+    if 'model' in eq_kwargs:
+        raise ValueError("Use `models` in eq_kwargs instead of `model`")
+    if 'models' not in eq_kwargs:
+        eq_kwargs['models'] = instantiate_models(dbf, comps, phases)
+        eq_kwargs['phase_record_factory'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['models'])
+    models = eq_kwargs['models']
     filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
@@ -192,11 +198,12 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         conds.update(comp_conds)
         wks.conditions = conds
         wks.calc_opts.update(eq_kwargs["calc_opts"])
-        if adaptive:
-            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
-        # eq = rename_disordered_phases(wks, ordering_records)  # TODO: ordering
         if not np.isnan(wks.get("GM")):
             last_converged_wks = wks.copy()
+        if adaptive:
+            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+
+        ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
         eq_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
         new_phases_seen = set(eq_phases).difference(phases_seen)
         if len(new_phases_seen) > 0:
@@ -228,26 +235,29 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         # TODO: liquid composition will be wrong if there is a liquid miscibility gap
         liquid_comp = {}
         for comp in independent_comps:
-            liquid_comp[v.X(comp)] = float(wks.get(f"X(LIQUID,{comp})"))
-        _update_phase_compositions(phase_compositions, wks)
-        np_liq = np.nansum(wks.get("NP(LIQUID)"))
+            liquid_comp[v.X(comp)] = float(wks.get(f"X({liquid_phase_name},{comp})"))
+        _update_phase_compositions(phase_compositions, wks, ordering_phase_name_remap)
+        np_liq = np.nansum(wks.get(f"NP({liquid_phase_name})"))
         current_fraction_solid = float(fraction_solid[-1])
         found_phase_amounts = [(liquid_phase_name, np_liq)]  # tuples of phase name, amount
         multiplicity_aware_stable_phases = _get_stable_phases_with_multiplicities(wks)
         for phase_name in multiplicity_aware_stable_phases:
+            # we need special name handling here because we still need to use the multiplicity aware name for PyCalphad Workspace calls
+            ord_aware_phase_name = ordering_phase_name_remap.get(phase_name, phase_name)
             if phase_name == liquid_phase_name:
                 continue
-            if phase_name not in phase_amounts:
+            if ord_aware_phase_name not in phase_amounts:
                 # new phase, found, we need to pad with zeros
                 # choose an arbitrary phase to count
                 num_steps = len(list(phase_amounts.values())[0])
-                phase_amounts[phase_name] = np.full(num_steps, 0.0).tolist()
+                phase_amounts[ord_aware_phase_name] = np.full(num_steps, 0.0).tolist()
             np_tieline = float(wks.get(f"NP({phase_name})"))
             found_phase_amounts.append((phase_name, np_tieline))
             delta_fraction_solid = (1 - current_fraction_solid) * np_tieline
             current_fraction_solid += delta_fraction_solid
-            phase_amounts[phase_name].append(delta_fraction_solid)
-        for unstable_phase_name in set(phase_amounts.keys()) - set(multiplicity_aware_stable_phases):
+            phase_amounts[ord_aware_phase_name].append(delta_fraction_solid)
+        stable_phases = set(multiplicity_aware_stable_phases) - set(ordering_phase_name_remap.keys()) | set(ordering_phase_name_remap.values())
+        for unstable_phase_name in set(phase_amounts.keys()) - set(stable_phases):
             # pad instantaneous stable phases that we know about with zero
             phase_amounts[unstable_phase_name].append(0.0)
         fraction_solid.append(current_fraction_solid)
@@ -269,7 +279,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         temp -= step_temperature
 
     if fraction_solid[-1] < 1:
-        _update_phase_compositions(phase_compositions, wks)
+        _update_phase_compositions(phase_compositions, wks, ordering_phase_name_remap)
         fraction_solid.append(1.0)
         temperatures.append(temp)
         # set the final phase amount to the phase fractions in the eutectic
@@ -278,16 +288,19 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             raise ValueError("No calculations converged.")
         multiplicity_aware_stable_phases = _get_stable_phases_with_multiplicities(last_converged_wks)
         for phase_name in multiplicity_aware_stable_phases:
+            # we need special name handling here because we still need to use the multiplicity aware name for PyCalphad Workspace calls
+            ord_aware_phase_name = ordering_phase_name_remap.get(phase_name, phase_name)
             if phase_name == liquid_phase_name:
                 continue
-            if phase_name not in phase_amounts:
+            if ord_aware_phase_name not in phase_amounts:
                 # new phase, found, we need to pad with zeros
                 # choose an arbitrary phase to count
                 num_steps = len(list(phase_amounts.values())[0])
-                phase_amounts[phase_name] = np.full(num_steps, 0.0).tolist()
+                phase_amounts[ord_aware_phase_name] = np.full(num_steps, 0.0).tolist()
             amount = float(wks.get(f"NP({phase_name})"))
-            phase_amounts[phase_name].append(float(amount) * (1 - current_fraction_solid))
-        for unstable_phase_name in set(phase_amounts.keys()) - set(multiplicity_aware_stable_phases):
+            phase_amounts[ord_aware_phase_name].append(float(amount) * (1 - current_fraction_solid))
+        stable_phases = set(multiplicity_aware_stable_phases) - set(ordering_phase_name_remap.keys()) | set(ordering_phase_name_remap.values())
+        for unstable_phase_name in set(phase_amounts.keys()) - set(stable_phases):
             # pad instantaneous stable phases that we know about with zero
             phase_amounts[unstable_phase_name].append(0.0)
 
@@ -336,10 +349,12 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     pure_comps = sorted(set(comps) - {"VA"})
     phase_compositions = {ph: {comp: [] for comp in pure_comps} for ph in sorted(set(solid_phases) | {liquid_phase_name})}
     independent_comps = sorted([str(comp)[2:] for comp in composition.keys()])
-    if 'model' not in eq_kwargs:
-        eq_kwargs['model'] = instantiate_models(dbf, comps, phases)
-        eq_kwargs['phase_records'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['model'])
-    models = eq_kwargs['model']
+    if 'model' in eq_kwargs:
+        raise ValueError("Use `models` in eq_kwargs instead of `model`")
+    if 'models' not in eq_kwargs:
+        eq_kwargs['models'] = instantiate_models(dbf, comps, phases)
+        eq_kwargs['phase_record_factory'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['models'])
+    models = eq_kwargs['models']
     if verbose:
         print('building PhaseRecord objects... ', end='')
     if verbose:
@@ -375,15 +390,16 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         conds[v.T] = current_T
         if verbose:
             print(f'{current_T} ', end='')
-        eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
-        if not is_converged(eq):
+        wks = Workspace(dbf, comps, phases, conds, **eq_kwargs)
+        if not is_converged(wks):
             if verbose:
                 comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                 print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
+        eq = wks._eq
         if adaptive:
             # Update the points dictionary with local samples around the equilibrium site fractions
-            _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
-        _update_phase_compositions(phase_compositions, eq)
+            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+        _update_phase_compositions(phase_compositions, wks, {})
         if liquid_phase_name in eq.Phase:
             # Add the liquid phase composition
             # TODO: will break in a liquid miscibility gap
@@ -400,14 +416,15 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             while (T_high - T_low) > binary_search_tol:
                 bin_search_T = (T_high - T_low) * 0.5 + T_low
                 conds[v.T] = bin_search_T
-                eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
-                if adaptive:
-                    # Update the points dictionary with local samples around the equilibrium site fractions
-                    _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
-                if not is_converged(eq):
+                wks = Workspace(dbf, comps, phases, conds, **eq_kwargs)
+                if not is_converged(wks):
                     if verbose:
                         comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                         print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
+                eq = wks._eq
+                if adaptive:
+                    # Update the points dictionary with local samples around the equilibrium site fractions
+                    _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
                 if liquid_phase_name in eq.Phase:
                     T_high = bin_search_T
                 else:
@@ -415,17 +432,18 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             converged = True
             conds[v.T] = T_low
             temperatures.append(T_low)
-            eq = equilibrium(dbf, comps, phases, conds, to_xarray=False, **eq_kwargs)
-            if not is_converged(eq):
+            wks = Workspace(dbf, comps, phases, conds, **eq_kwargs)
+            if not is_converged(wks):
                 if verbose:
                     comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                     print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
+            eq = wks._eq
             if verbose:
                 found_phases = set(eq.Phase[eq.Phase != ''].tolist())
                 print(f"Finshed binary search at T={conds[v.T]} with phases={found_phases} and NP={eq.NP.squeeze()[:len(found_phases)]}")
             if adaptive:
                 # Update the points dictionary with local samples around the equilibrium site fractions
-                _update_points(eq, eq_kwargs['calc_opts']['points'], dof_dict)
+                _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
 
         # Calculate fraction of solid and solid phase amounts
         current_fraction_solid = 0.0
