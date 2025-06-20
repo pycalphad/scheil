@@ -1,5 +1,8 @@
+from typing import TypeAlias
 import numpy as np
 import pandas as pd
+
+PhaseName: TypeAlias = str
 
 
 class SolidificationResult():
@@ -39,7 +42,7 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, validate_invariants=True):
         # sort of a hack because we don't explictly track liquid phase name
         self.phase_compositions = phase_compositions
         self.fraction_solid = fraction_solid
@@ -51,6 +54,22 @@ class SolidificationResult():
         self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
+
+        if validate_invariants:
+            # Check invariants as far as number of points being in agreement
+            num_points = len(self.temperatures)
+            assert len(self.temperatures) == num_points, f"Expected {num_points} temperature points, got {len(self.temperatures)}"
+            assert len(self.fraction_liquid) == num_points, f"Expected {num_points} fraction_liquid points, got {len(self.fraction_liquid)}"
+            assert len(self.fraction_solid) == num_points, f"Expected {num_points} fraction_solid points, got {len(self.fraction_solid)}"
+            for phase_name, amnts in self.phase_amounts.items():
+                assert len(amnts) == num_points, f"Expected {num_points} phase amounts for {phase_name}, got {len(amnts)}"
+            for phase_name, amnts in self.cum_phase_amounts.items():
+                assert len(amnts) == num_points, f"Expected {num_points} phase amounts for {phase_name}, got {len(amnts)}"
+            for component, amnts in self.x_liquid.items():
+                assert len(amnts) == num_points, f"Expected {num_points} component amounts for {component} in phase {self.liquid_phase_name}, got {len(amnts)}"
+            for phase_name, component_amounts in self.phase_compositions.items():
+                for component, amnts in component_amounts.items():
+                    assert len(amnts) == num_points, f"Expected {num_points} component amounts for {component} in phase {phase_name}, got {len(amnts)}"
 
     def __repr__(self):
         name = self.__class__.__name__
