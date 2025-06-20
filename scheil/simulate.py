@@ -279,7 +279,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         temp -= step_temperature
 
     if fraction_solid[-1] < 1:
-        _update_phase_compositions(phase_compositions, wks, ordering_phase_name_remap)
+        _update_phase_compositions(phase_compositions, last_converged_wks, ordering_phase_name_remap)
         fraction_solid.append(1.0)
         temperatures.append(temp)
         # set the final phase amount to the phase fractions in the eutectic
@@ -297,7 +297,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 # choose an arbitrary phase to count
                 num_steps = len(list(phase_amounts.values())[0])
                 phase_amounts[ord_aware_phase_name] = np.full(num_steps, 0.0).tolist()
-            amount = float(wks.get(f"NP({phase_name})"))
+            amount = float(last_converged_wks.get(f"NP({phase_name})"))
             phase_amounts[ord_aware_phase_name].append(float(amount) * (1 - current_fraction_solid))
         stable_phases = set(multiplicity_aware_stable_phases) - set(ordering_phase_name_remap.keys()) | set(ordering_phase_name_remap.values())
         for unstable_phase_name in set(phase_amounts.keys()) - set(stable_phases):
