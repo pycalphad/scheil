@@ -1,4 +1,5 @@
-from typing import TypeAlias
+from typing import Sequence, TypeAlias
+from numpy.typing import ArrayLike
 import numpy as np
 import pandas as pd
 
@@ -42,7 +43,7 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, validate_invariants=True):
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, output: dict[str, ArrayLike] | None = None, validate_invariants=True):
         # sort of a hack because we don't explictly track liquid phase name
         self.phase_compositions = phase_compositions
         self.fraction_solid = fraction_solid
@@ -54,6 +55,10 @@ class SolidificationResult():
         self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
+        self.output = {}
+        if output is not None:
+            for out, vals in output.items():
+                self.output[out] = np.asarray(vals).tolist()
 
         if validate_invariants:
             # Check invariants as far as number of points being in agreement
@@ -70,6 +75,8 @@ class SolidificationResult():
             for phase_name, component_amounts in self.phase_compositions.items():
                 for component, amnts in component_amounts.items():
                     assert len(amnts) == num_points, f"Expected {num_points} component amounts for {component} in phase {phase_name}, got {len(amnts)}"
+            for out, vals in self.output.items():
+                assert len(vals) == num_points, f"Expected {num_points} output points for output {out}, got {len(vals)}"
 
     def __repr__(self):
         name = self.__class__.__name__

@@ -6,6 +6,7 @@ from pycalphad import variables as v, Workspace
 from pycalphad.codegen.phase_record_factory import PhaseRecordFactory
 from pycalphad.core.calculate import _sample_phase_constitution
 from pycalphad.core.utils import instantiate_models, unpack_species, filter_phases, point_sample
+from pycalphad.property_framework import ComputableProperty
 from .solidification_result import SolidificationResult, PhaseName
 from .utils import local_sample, get_phase_amounts
 from .ordering import create_ordering_records, rename_disordered_phases, _wks_ordering_rename_map
@@ -109,10 +110,11 @@ def _update_phase_compositions(phase_compositions: Mapping[PhaseName, Mapping[st
 
 
 def simulate_scheil_solidification(dbf, comps, phases, composition,
-
                                    start_temperature, step_temperature=1.0,
                                    liquid_phase_name='LIQUID', eq_kwargs=None,
-                                   stop=0.0001, verbose=False, adaptive=True):
+                                   stop=0.0001, verbose=False, adaptive=True,
+                                   output: list[str | ComputableProperty] | None = None,
+                                   ):
     """Perform a Scheil-Gulliver solidification simulation.
 
     Parameters
@@ -139,6 +141,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     adaptive: Optional[bool]
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
+    output: list[str | ComputableProperty] | None = None,
+        List of PyCalphad computable properties to access (via Workspace.get()) at each temperature
 
     Returns
     -------
@@ -157,6 +161,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         eq_kwargs['models'] = instantiate_models(dbf, comps, phases)
         eq_kwargs['phase_record_factory'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['models'])
     models = eq_kwargs['models']
+    if output is None:
+        output = []
     filtered_disordered_phases = {ord_rec.disordered_phase_name for ord_rec in ordering_records}
     solid_phases = sorted((set(phases) | filtered_disordered_phases) - {liquid_phase_name})
     temp = start_temperature
@@ -166,6 +172,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     temperatures = [temp]
     phase_amounts = {ph: [0.0] for ph in solid_phases}
     phase_compositions = {ph: {comp: [np.nan] for comp in pure_comps} for ph in sorted(set(solid_phases) | {liquid_phase_name})}
+    # TODO: the initial custom outputs may not be the same shape (on the inner values) as the usual outputs
+    custom_outputs = {str(out): [np.nan] for out in output}
 
     if adaptive:
         dof_dict = {phase_name: list(map(len, mod.constituents)) for phase_name, mod in models.items()}
@@ -263,6 +271,8 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         fraction_solid.append(current_fraction_solid)
         temperatures.append(temp)
         NL = 1 - fraction_solid[-1]
+        for out in output:
+            custom_outputs[str(out)].append(wks.get(out))
         if verbose:
             phase_amnts = ' '.join([f'NP({ph})={amnt:0.3f}' for ph, amnt in found_phase_amounts])
             if NL < 1.0e-3:
@@ -279,13 +289,15 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         temp -= step_temperature
 
     if fraction_solid[-1] < 1:
-        _update_phase_compositions(phase_compositions, last_converged_wks, ordering_phase_name_remap)
-        fraction_solid.append(1.0)
-        temperatures.append(temp)
-        # set the final phase amount to the phase fractions in the eutectic
-        # this method gives the sum total phase amounts of 1.0 by construction
         if last_converged_wks is None:
             raise ValueError("No calculations converged.")
+        _update_phase_compositions(phase_compositions, last_converged_wks, ordering_phase_name_remap)
+        # set the final phase amount to the phase fractions in the eutectic
+        # this method gives the sum total phase amounts of 1.0 by construction
+        fraction_solid.append(1.0)
+        temperatures.append(temp)
+        for out in output:
+            custom_outputs[str(out)].append(wks.get(out))
         multiplicity_aware_stable_phases = _get_stable_phases_with_multiplicities(last_converged_wks)
         for phase_name in multiplicity_aware_stable_phases:
             # we need special name handling here because we still need to use the multiplicity aware name for PyCalphad Workspace calls
@@ -304,7 +316,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
             # pad instantaneous stable phases that we know about with zero
             phase_amounts[unstable_phase_name].append(0.0)
 
-    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "scheil")
+    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "scheil", output=custom_outputs)
 
 
 def simulate_equilibrium_solidification(dbf, comps, phases, composition,
