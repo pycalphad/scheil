@@ -6,6 +6,52 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "scheil"
+authors = [
+    {name = "Brandon Bocklund", email = "brandonbocklund@gmail.com"},
+]
+description = "Scheil-Gulliver simulations using pycalphad."
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pycalphad>=0.11.0",
+    "setuptools_scm[toml]>=6.0",
+    "scipy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://scheil.readthedocs.io"
+
+[project.optional-dependencies]
+dev = [
+    "furo",
+    "ipython",
+    "pytest",
+    "sphinx",
+    "twine",
+]
+
+[dependency-groups]
+dev = [
+    "furo",
+    "ipython",
+    "pytest",
+    "sphinx",
+    "twine",
+]
+
 [tool.pytest.ini_options]
 norecursedirs = ["scheil/_dev"]
 addopts = "--doctest-modules"
