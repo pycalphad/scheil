@@ -59,6 +59,49 @@ def test_scheil_solidification_result_properties():
     sol_res.to_dataframe(include_zero_phases=False)
 
 
+
+def test_scheil_solidification_custom_properties():
+    """Test that SolidificationResult objects produced by Scheil solidification calculations with custom outputs have the right shape."""
+    dbf = Database(os.path.join(os.path.dirname(__file__), 'alzn_mey.tdb'))
+    comps = ['AL', 'ZN', 'VA']
+    phases = sorted(dbf.phases.keys())
+
+    initial_composition = {v.X('ZN'): 0.3}
+    start_temperature = 850
+
+    sol_res = simulate_scheil_solidification(dbf, comps, phases, initial_composition, start_temperature, step_temperature=20.0, verbose=True, output=["HM", "CPM", "NP(LIQUID)"])
+
+    # Note, we aren't checking for correctess right now, just that the shapes are notionally correct
+    num_temperatures = len(sol_res.temperatures)
+    assert num_temperatures == len(sol_res.output["HM"])
+    print("HM", sol_res.output["HM"])
+    assert num_temperatures == len(sol_res.output["NP(LIQUID)"])
+    print("NP(LIQUID)", sol_res.output["NP(LIQUID)"])
+    assert num_temperatures == len(sol_res.output["CPM"])
+    print("CPM", sol_res.output["CPM"])
+
+    # Test serialization
+    for ky, vl in sol_res.to_dict().items():
+        print(ky, vl, type(ky), type(vl))
+        json.dumps({ky: vl})
+    json.dumps(sol_res.to_dict())
+
+    # Test round tripping to/from dict
+    rnd_trip_sol_res = SolidificationResult.from_dict(sol_res.to_dict())
+    assert rnd_trip_sol_res.fraction_liquid == sol_res.fraction_liquid
+    assert rnd_trip_sol_res.fraction_solid == sol_res.fraction_solid
+    assert rnd_trip_sol_res.x_liquid == sol_res.x_liquid
+    assert rnd_trip_sol_res.cum_phase_amounts == sol_res.cum_phase_amounts
+    assert rnd_trip_sol_res.phase_amounts == sol_res.phase_amounts
+    assert rnd_trip_sol_res.temperatures == sol_res.temperatures
+    assert rnd_trip_sol_res.converged == sol_res.converged
+    assert rnd_trip_sol_res.method == sol_res.method
+
+    # Test to_dataframe doesn't raise
+    sol_res.to_dataframe(include_zero_phases=True)
+    sol_res.to_dataframe(include_zero_phases=False)
+
+
 def test_equilibrium_solidification_result_properties():
     """Test that SolidificationResult objects produced by equilibrium have the required properties."""
     # Required properties are that the shape of the output arrays are matching
