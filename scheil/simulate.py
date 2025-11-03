@@ -126,7 +126,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     phases : list
         List of phases in the system.
     composition : Dict[v.X, float]
-        Dictionary of independent `v.X` composition variables.
+        Dictionary of independent ``v.X`` composition variables.
     start_temperature : float
         Starting temperature for simulation. Must be single phase liquid.
     step_temperature : Optional[float]
@@ -142,7 +142,10 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
     output: list[str | ComputableProperty] | None,
-        List of PyCalphad computable properties to access (via Workspace.get()) at each temperature
+        List of PyCalphad computable properties to access (via ``Workspace.get()``)
+        at each temperature. For Scheil simulations, the outputs will contain
+        properties for "instantaneous" (N=1) properties each temperature step
+        and may need post-processing to be useful.
 
     Returns
     -------
@@ -336,7 +339,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     phases : list
         List of phases in the system.
     composition : Dict[v.X, float]
-        Dictionary of independent `v.X` composition variables.
+        Dictionary of independent ``v.X`` composition variables.
     start_temperature : float
         Starting temperature for simulation. Should be single phase liquid.
     step_temperature : Optional[float]
@@ -352,7 +355,10 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
     output: list[str | ComputableProperty] | None
-        List of PyCalphad computable properties to access (via Workspace.get()) at each temperature
+        List of PyCalphad computable properties to access (via ``Workspace.get()``)
+        at each temperature. In equilibrium solidification simulations, the
+        outputs will be the equilibrium ("cumulative") properties at each time
+        step and may need post-processing to be useful.
 
     """
     eq_kwargs = eq_kwargs or dict()
