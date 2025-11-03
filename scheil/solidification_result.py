@@ -92,6 +92,7 @@ class SolidificationResult():
             'phase_amounts': self.phase_amounts,
             'converged': self.converged,
             'method': self.method,
+            'output': self.output,
         }
         return d
 
@@ -103,7 +104,8 @@ class SolidificationResult():
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method)
+        output = d['output']
+        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, output=output)
 
     def to_dataframe(self, include_zero_phases=True):
         """
@@ -125,5 +127,7 @@ class SolidificationResult():
             if phase_name in stable_phases or include_zero_phases:
                 for comp, vals in phase_compositions.items():
                     data_dict[f"X({phase_name},{comp})"] = vals
+        for output_key, output_vals in self.output.items():
+            data_dict[output_key] = output_vals
         df = pd.DataFrame(data_dict)
         return df

@@ -96,10 +96,15 @@ def test_scheil_solidification_custom_properties():
     assert rnd_trip_sol_res.temperatures == sol_res.temperatures
     assert rnd_trip_sol_res.converged == sol_res.converged
     assert rnd_trip_sol_res.method == sol_res.method
-
+    assert set(sol_res.output.keys()) == set(rnd_trip_sol_res.output.keys())
+    for ky in sol_res.output.keys():
+        np.testing.assert_almost_equal(rnd_trip_sol_res.output[ky], sol_res.output[ky])
+    
     # Test to_dataframe doesn't raise
     sol_res.to_dataframe(include_zero_phases=True)
-    sol_res.to_dataframe(include_zero_phases=False)
+    df = sol_res.to_dataframe(include_zero_phases=False)
+    assert "CPM" in df.columns
+    assert "HM" in df.columns
 
 
 def test_equilibrium_solidification_result_properties():
