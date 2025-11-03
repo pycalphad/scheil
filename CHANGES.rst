@@ -2,6 +2,11 @@
 Changelog
 =========
 
+0.3.0 (2025-11-03)
+==================
+* Better support for the PyCalphad Workspace API, which allows for requesting custom Workspace property outputs for both Scheil and equilibrium solidification. Note that these may require post-processing to use meaningfully. (:issue:`39`)
+* Remove hardcoded print statement in Scheil solidification simulations
+
 0.2.0 (2024-08-12)
 ==================
 
