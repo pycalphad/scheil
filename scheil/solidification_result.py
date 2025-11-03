@@ -1,5 +1,9 @@
+from typing import Sequence, TypeAlias
+from numpy.typing import ArrayLike
 import numpy as np
 import pandas as pd
+
+PhaseName: TypeAlias = str
 
 
 class SolidificationResult():
@@ -39,7 +43,7 @@ class SolidificationResult():
 
     """
 
-    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method):
+    def __init__(self, phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, output: dict[str, ArrayLike] | None = None, validate_invariants=True):
         # sort of a hack because we don't explictly track liquid phase name
         self.phase_compositions = phase_compositions
         self.fraction_solid = fraction_solid
@@ -51,6 +55,28 @@ class SolidificationResult():
         self.x_liquid = phase_compositions[self.liquid_phase_name]  # keeping for backwards compatibility, but this is also present in self.phase_compositions
         self.converged = converged
         self.method = method
+        self.output = {}
+        if output is not None:
+            for out, vals in output.items():
+                self.output[out] = np.asarray(vals).tolist()
+
+        if validate_invariants:
+            # Check invariants as far as number of points being in agreement
+            num_points = len(self.temperatures)
+            assert len(self.temperatures) == num_points, f"Expected {num_points} temperature points, got {len(self.temperatures)}"
+            assert len(self.fraction_liquid) == num_points, f"Expected {num_points} fraction_liquid points, got {len(self.fraction_liquid)}"
+            assert len(self.fraction_solid) == num_points, f"Expected {num_points} fraction_solid points, got {len(self.fraction_solid)}"
+            for phase_name, amnts in self.phase_amounts.items():
+                assert len(amnts) == num_points, f"Expected {num_points} phase amounts for {phase_name}, got {len(amnts)}"
+            for phase_name, amnts in self.cum_phase_amounts.items():
+                assert len(amnts) == num_points, f"Expected {num_points} phase amounts for {phase_name}, got {len(amnts)}"
+            for component, amnts in self.x_liquid.items():
+                assert len(amnts) == num_points, f"Expected {num_points} component amounts for {component} in phase {self.liquid_phase_name}, got {len(amnts)}"
+            for phase_name, component_amounts in self.phase_compositions.items():
+                for component, amnts in component_amounts.items():
+                    assert len(amnts) == num_points, f"Expected {num_points} component amounts for {component} in phase {phase_name}, got {len(amnts)}"
+            for out, vals in self.output.items():
+                assert len(vals) == num_points, f"Expected {num_points} output points for output {out}, got {len(vals)}"
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -66,6 +92,7 @@ class SolidificationResult():
             'phase_amounts': self.phase_amounts,
             'converged': self.converged,
             'method': self.method,
+            'output': self.output,
         }
         return d
 
@@ -77,7 +104,8 @@ class SolidificationResult():
         phase_amounts = d['phase_amounts']
         converged = d['converged']
         method = d['method']
-        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method)
+        output = d['output']
+        return cls(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, method, output=output)
 
     def to_dataframe(self, include_zero_phases=True):
         """
@@ -99,5 +127,7 @@ class SolidificationResult():
             if phase_name in stable_phases or include_zero_phases:
                 for comp, vals in phase_compositions.items():
                     data_dict[f"X({phase_name},{comp})"] = vals
+        for output_key, output_vals in self.output.items():
+            data_dict[output_key] = output_vals
         df = pd.DataFrame(data_dict)
         return df
