@@ -141,7 +141,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
     adaptive: Optional[bool]
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
-    output: list[str | ComputableProperty] | None = None,
+    output: list[str | ComputableProperty] | None,
         List of PyCalphad computable properties to access (via Workspace.get()) at each temperature
 
     Returns
