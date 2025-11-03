@@ -323,7 +323,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                                         start_temperature, step_temperature=1.0,
                                         liquid_phase_name='LIQUID', adaptive=True, eq_kwargs=None,
                                         binary_search_tol=0.1,
-                                        verbose=False):
+                                        verbose=False, output: list[str | ComputableProperty] | None = None):
     """
     Compute the equilibrium solidification path.
 
@@ -351,6 +351,8 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
     adaptive: Optional[bool]
         Whether to add additional points near the equilibrium points at each
         step. Only takes effect if ``points`` is in the eq_kwargs dict.
+    output: list[str | ComputableProperty] | None
+        List of PyCalphad computable properties to access (via Workspace.get()) at each temperature
 
     """
     eq_kwargs = eq_kwargs or dict()
@@ -367,6 +369,9 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         eq_kwargs['models'] = instantiate_models(dbf, comps, phases)
         eq_kwargs['phase_record_factory'] = PhaseRecordFactory(dbf, comps, [v.N, v.P, v.T], eq_kwargs['models'])
     models = eq_kwargs['models']
+    if output is None:
+        output = []
+    custom_outputs = {str(out): [] for out in output}
     if verbose:
         print('building PhaseRecord objects... ', end='')
     if verbose:
@@ -407,24 +412,24 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             if verbose:
                 comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                 print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
-        eq = wks._eq
         if adaptive:
             # Update the points dictionary with local samples around the equilibrium site fractions
             _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
-        _update_phase_compositions(phase_compositions, wks, {})
-        if liquid_phase_name in eq.Phase:
-            # Add the liquid phase composition
-            # TODO: will break in a liquid miscibility gap
-            liquid_vertex = np.nonzero(eq.Phase == liquid_phase_name)[-1][0]
+        ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
+        _update_phase_compositions(phase_compositions, wks, ordering_phase_name_remap)
+        stable_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
+        liquid_is_stable = liquid_phase_name in stable_phases
+        if liquid_is_stable:
+            for out in output:
+                custom_outputs[str(out)].append(wks.get(out))
             temperatures.append(current_T)
             current_T -= step_temperature
         else:
             # binary search to find the solidus
             T_high = current_T + step_temperature  # High temperature, liquid
             T_low = current_T  # Low temperature, solids only
-            found_ph = set(eq.Phase[eq.Phase != ''].tolist())
             if verbose:
-                print(f'Found phases {found_ph}. Starting binary search between T={(T_low, T_high)} ', end='')
+                print(f'Found phases {stable_phases - {""}}. Starting binary search between T={(T_low, T_high)} ', end='')
             while (T_high - T_low) > binary_search_tol:
                 bin_search_T = (T_high - T_low) * 0.5 + T_low
                 conds[v.T] = bin_search_T
@@ -433,11 +438,12 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                     if verbose:
                         comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                         print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
-                eq = wks._eq
                 if adaptive:
                     # Update the points dictionary with local samples around the equilibrium site fractions
                     _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
-                if liquid_phase_name in eq.Phase:
+                # Check if liquid is present in this binary search step
+                bin_search_stable_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
+                if liquid_phase_name in bin_search_stable_phases:
                     T_high = bin_search_T
                 else:
                     T_low = bin_search_T
@@ -449,19 +455,38 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 if verbose:
                     comp_conds = {cond: val for cond, val in conds.items() if isinstance(cond, v.X)}
                     print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
-            eq = wks._eq
+            final_stable_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
             if verbose:
-                found_phases = set(eq.Phase[eq.Phase != ''].tolist())
-                print(f"Finshed binary search at T={conds[v.T]} with phases={found_phases} and NP={eq.NP.squeeze()[:len(found_phases)]}")
+                found_phases = final_stable_phases - {''}
+                phase_amounts_str = ", ".join([f"NP({ph})={float(wks.get(f'NP({ph})')):0.3f}" for ph in found_phases])
+                print(f"Finished binary search at T={conds[v.T]} with phases={found_phases} and {phase_amounts_str}")
             if adaptive:
                 # Update the points dictionary with local samples around the equilibrium site fractions
                 _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+            # Recalculate ordering remap for the final converged workspace after binary search
+            ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
+            # Add custom outputs for the final converged point
+            for out in output:
+                custom_outputs[str(out)].append(wks.get(out))
 
         # Calculate fraction of solid and solid phase amounts
         current_fraction_solid = 0.0
-        eq = rename_disordered_phases(eq.get_dataset(), ordering_records)
-        current_cum_phase_amnts = get_phase_amounts(eq.Phase.values.squeeze(), eq.NP.squeeze(), solid_phases)
-        for solid_phase, amount in current_cum_phase_amnts.items():
+        multiplicity_aware_stable_phases = _get_stable_phases_with_multiplicities(wks)
+
+        # Calculate cumulative phase amounts for solid phases
+        current_cum_phase_amnts = {ph: 0.0 for ph in solid_phases}
+        for phase_name in multiplicity_aware_stable_phases:
+            # Apply ordering-aware naming
+            ord_aware_phase_name = ordering_phase_name_remap.get(phase_name, phase_name)
+            if ord_aware_phase_name == liquid_phase_name:
+                continue
+            if ord_aware_phase_name in current_cum_phase_amnts:
+                phase_amount = float(wks.get(f"NP({phase_name})"))
+                current_cum_phase_amnts[ord_aware_phase_name] += phase_amount
+
+        # Update phase amounts with instantaneous values
+        for solid_phase in solid_phases:
+            amount = current_cum_phase_amnts[solid_phase]
             # Since the equilibrium calculations always give the "cumulative" phase amount,
             # we need to take the difference to get the instantaneous.
             cum_phase_amounts[solid_phase].append(amount)
@@ -473,4 +498,4 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
         fraction_solid.append(current_fraction_solid)
 
     converged = True if np.isclose(fraction_solid[-1], 1.0) else False
-    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "equilibrium")
+    return SolidificationResult(phase_compositions, fraction_solid, temperatures, phase_amounts, converged, "equilibrium", output=custom_outputs)
