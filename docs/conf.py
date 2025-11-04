@@ -22,7 +22,6 @@ import sys
 import re
 
 # scheil must be importable to build API documentation and for version retreiva
-sys.path.insert(0, os.path.abspath('../scheil'))
 from scheil import __version__ as scheil_version
 # Remove the local version date from the end if there is one
 scheil_version = re.sub('\\.d[0-9]{8}', '', scheil_version)
