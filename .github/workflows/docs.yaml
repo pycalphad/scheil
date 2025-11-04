@@ -1,0 +1,17 @@
+name: Documentation
+on: [push, pull_request]
+
+jobs:
+  sphinx-build:
+    name: Run sphinx-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # fetch the entire repo history, required to guarantee versioneer will pick up the tags
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      # Build HTML and LaTeX docs
+      # Treat all warnings as errors and "keep-going" to collect all warnings
+      - run: uv run sphinx-build --fail-on-warning --keep-going docs/ docs/_build
