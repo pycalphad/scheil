@@ -25,7 +25,7 @@ import re
 sys.path.insert(0, os.path.abspath('../scheil'))
 from scheil import __version__ as scheil_version
 # Remove the local version date from the end if there is one
-scheil_version = re.sub('\.d[0-9]{8}', '', scheil_version)
+scheil_version = re.sub('\\.d[0-9]{8}', '', scheil_version)
 
 # -- General configuration ------------------------------------------------
 
@@ -48,7 +48,7 @@ numpydoc_show_class_members = False
 
 # Allows for specifying ":issue:`123`" to link to GitHub.
 # https://www.sphinx-doc.org/en/master/usage/extensions/extlinks.html
-extlinks = {'issue': ('https://github.com/pycalphad/scheil/issues/%s', 'issue ')}
+extlinks = {'issue': ('https://github.com/pycalphad/scheil/issues/%s', 'issue %s')}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -81,7 +81,7 @@ release = scheil_version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
