@@ -8,6 +8,8 @@ build:
     post_checkout:
       # ensure that a tagged version is fetched
       - git fetch --unshallow || true
+      - git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
+      - git fetch --all --tags || true
 
 sphinx:
   configuration: docs/conf.py
