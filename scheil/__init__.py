@@ -20,12 +20,10 @@ try:
     # source control management system at the project root.
     __version__ = get_version(root='..', relative_to=__file__)
     del get_version
-except ImportError:
+except (ImportError, LookupError):
     # Fall back on the metadata of the installed package
-    try:
-        from importlib.metadata import version
-    except ImportError:
-        # backport for Python<3.8
-        from importlib_metadata import version
+    # ImportError occurs if there's no ._dev
+    # LookupError occurs if get_version fails
+    from importlib.metadata import version
     __version__ = version("scheil")
     del version
