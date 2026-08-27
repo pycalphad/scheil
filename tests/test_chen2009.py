@@ -5,17 +5,18 @@ import numpy as np
 from pycalphad import Database, variables as v
 from scheil import simulate_scheil_solidification
 import pytest
+from fixtures import select_database, load_database, DATABASE_DIR
 
-DB_CHEN = Database(os.path.join(os.path.dirname(__file__), 'sl_chen.tdb'))
 
-
-def test_binary_A_B():
+@select_database("sl_chen.tdb")
+def test_binary_A_B(load_database):
     """Tests for the Scheil properties of the A-B binary peritectic system"""
+    dbf = load_database()
     comp = {v.X('B'): 0.5}
     start = 800  # Kelvin
     step = 5.0
 
-    sol_res = simulate_scheil_solidification(DB_CHEN, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
     print(f"Converged to stopping criteria: {sol_res.converged}")
 
     phase_amnts = sol_res.phase_amounts
@@ -53,7 +54,7 @@ def test_binary_A_B():
 )
 def test_binary_A_B_with_ordering(phases):
     """Tests for the Scheil properties of the A-B binary peritectic system with an ordered phase ORD_BETA"""
-    with open(os.path.join(os.path.dirname(__file__), 'sl_chen.tdb')) as fp:
+    with open(os.path.join(DATABASE_DIR, 'sl_chen.tdb')) as fp:
         tdb_str = fp.read()
     # Append an ordered phase, 'ORD_BETA' with no ordering parameters
     ordered_phase_str = """
@@ -98,13 +99,15 @@ def test_binary_A_B_with_ordering(phases):
     assert np.isclose(sol_res.temperatures[idx_first_beta], 647, atol=step * 1.1)
 
 
-def test_binary_A_C():
+@select_database("sl_chen.tdb")
+def test_binary_A_C(load_database):
     """Tests for the Scheil properties of the A-C binary eutectic system"""
+    dbf = load_database()
     comp = {v.X('C'): 0.5}
     start = 900  # Kelvin
     step = 5.0
 
-    sol_res = simulate_scheil_solidification(DB_CHEN, ['A', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
     print(f"Converged to stopping criteria: {sol_res.converged}")
 
     phase_amnts = sol_res.phase_amounts
@@ -126,7 +129,8 @@ def test_binary_A_C():
         assert np.isclose(sol_res.temperatures[-1], 820, atol=step * 1.1)
 
 
-def test_ternary_A_B_C():
+@select_database("sl_chen.tdb")
+def test_ternary_A_B_C(load_database):
     """Tests for the Scheil properties of the A-B-C ternary system
 
     There is a transition point, t, where the solidification changes from the
@@ -134,11 +138,12 @@ def test_ternary_A_B_C():
     around this point.
     """
     t_temp = 683.7  # Eutectic-like to peritectic-like transition temperature, in Kelvin
+    dbf = load_database()
     comp = {v.X('B'): 0.25, v.X('C'): 0.1}
     start = 800  # Kelvin
     step = 5
 
-    sol_res = simulate_scheil_solidification(DB_CHEN, ['A', 'B', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'B', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
     print(f"Converged to stopping criteria: {sol_res.converged}")
 
     phase_amnts = sol_res.phase_amounts
