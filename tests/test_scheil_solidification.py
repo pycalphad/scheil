@@ -5,6 +5,21 @@ from pycalphad import variables as v
 from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification, SolidificationResult
 from fixtures import select_database, load_database
 
+@select_database("sl_chen.tdb")
+def test_scheil_solidification_raises_without_initial_liquid(load_database):
+    """Scheil solidification should raise a clear error if no liquid is stable at the start temperature."""
+    dbf = load_database()
+    # For X(B)=0.5 the A-B system is fully solid below 600 K, so 500 K has no stable liquid
+    with pytest.raises(ValueError, match="[Ll]iquid"):
+        simulate_scheil_solidification(dbf, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], {v.X('B'): 0.5}, 500.0, step_temperature=5.0)
+
+
+@select_database("sl_chen.tdb")
+def test_equilibrium_solidification_raises_without_initial_liquid(load_database):
+    """Equilibrium solidification should raise a clear error if no liquid is stable at the start temperature."""
+    dbf = load_database()
+    with pytest.raises(ValueError, match="[Ll]iquid"):
+        simulate_equilibrium_solidification(dbf, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], {v.X('B'): 0.5}, 500.0, step_temperature=5.0)
 
 
 @select_database("alzn_mey.tdb")
