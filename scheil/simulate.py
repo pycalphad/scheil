@@ -198,7 +198,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 print('done')
 
     converged = False
-    phases_seen = {liquid_phase_name, ''}
+    phases_seen = {''}
     liquid_comp = composition
     wks = Workspace(dbf, comps, phases, calc_opts=eq_kwargs.get("calc_opts"))
     last_converged_wks = None
@@ -230,6 +230,10 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 if verbose:
                     print(f'(Convergence failure) ', end='')
             if T_STEP_ORIG / step_temperature > MAXIMUM_STEP_SIZE_REDUCTION:
+                if liquid_phase_name not in phases_seen:
+                    if len(found_ph) == 0:
+                        raise ValueError(f"No equilibrium calculations converged near the starting temperature ({start_temperature} K). The starting temperature must be at or above the liquidus.")
+                    raise ValueError(f"No stable liquid phase ({liquid_phase_name}) found at the starting temperature ({start_temperature} K); found phases {found_ph}. The starting temperature must be at or above the liquidus.")
                 # Only found solid phases and the step size has already been reduced. Stop running without converging.
                 if verbose:
                     print('Maximum step size reduction exceeded. Stopping.')
@@ -431,6 +435,13 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
             temperatures.append(current_T)
             current_T -= step_temperature
         else:
+            if len(temperatures) == 0:
+                # Liquid was not stable at the starting temperature, so there is no liquid-bearing
+                # upper bound for the binary search and no solidification path to compute.
+                found_ph = stable_phases - {''}
+                if len(found_ph) == 0:
+                    raise ValueError(f"No equilibrium calculations converged at the starting temperature ({start_temperature} K). The starting temperature must be at or above the liquidus.")
+                raise ValueError(f"No stable liquid phase ({liquid_phase_name}) found at the starting temperature ({start_temperature} K); found phases {found_ph}. The starting temperature must be at or above the liquidus.")
             # binary search to find the solidus
             T_high = current_T + step_temperature  # High temperature, liquid
             T_low = current_T  # Low temperature, solids only

@@ -1,18 +1,36 @@
-import os
 import json
 import numpy as np
-from pycalphad import Database, variables as v
+import pytest
+from pycalphad import variables as v
 from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification, SolidificationResult
+from fixtures import select_database, load_database
+
+@select_database("sl_chen.tdb")
+def test_scheil_solidification_raises_without_initial_liquid(load_database):
+    """Scheil solidification should raise a clear error if no liquid is stable at the start temperature."""
+    dbf = load_database()
+    # For X(B)=0.5 the A-B system is fully solid below 600 K, so 500 K has no stable liquid
+    with pytest.raises(ValueError, match="[Ll]iquid"):
+        simulate_scheil_solidification(dbf, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], {v.X('B'): 0.5}, 500.0, step_temperature=5.0)
 
 
-def test_scheil_solidification_result_properties():
+@select_database("sl_chen.tdb")
+def test_equilibrium_solidification_raises_without_initial_liquid(load_database):
+    """Equilibrium solidification should raise a clear error if no liquid is stable at the start temperature."""
+    dbf = load_database()
+    with pytest.raises(ValueError, match="[Ll]iquid"):
+        simulate_equilibrium_solidification(dbf, ['A', 'B'], ['ALPHA', 'BETA', 'LIQUID'], {v.X('B'): 0.5}, 500.0, step_temperature=5.0)
+
+
+@select_database("alzn_mey.tdb")
+def test_scheil_solidification_result_properties(load_database):
     """Test that SolidificationResult objects produced by Scheil solidification have the required properties."""
     # Required properties are
     # 1. the shape of the output arrays are matching
     # 2. the final fraction of solid is 1.0 and fraction of liquid is 0.0
     # 3. the sum total of the final (solid) phase amounts is 1.0
 
-    dbf = Database(os.path.join(os.path.dirname(__file__), 'alzn_mey.tdb'))
+    dbf = load_database()
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
@@ -60,9 +78,10 @@ def test_scheil_solidification_result_properties():
 
 
 
-def test_scheil_solidification_custom_properties():
+@select_database("alzn_mey.tdb")
+def test_scheil_solidification_custom_properties(load_database):
     """Test that SolidificationResult objects produced by Scheil solidification calculations with custom outputs have the right shape."""
-    dbf = Database(os.path.join(os.path.dirname(__file__), 'alzn_mey.tdb'))
+    dbf = load_database()
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
@@ -99,7 +118,7 @@ def test_scheil_solidification_custom_properties():
     assert set(sol_res.output.keys()) == set(rnd_trip_sol_res.output.keys())
     for ky in sol_res.output.keys():
         np.testing.assert_almost_equal(rnd_trip_sol_res.output[ky], sol_res.output[ky])
-    
+
     # Test to_dataframe doesn't raise
     sol_res.to_dataframe(include_zero_phases=True)
     df = sol_res.to_dataframe(include_zero_phases=False)
@@ -107,13 +126,14 @@ def test_scheil_solidification_custom_properties():
     assert "HM" in df.columns
 
 
-def test_equilibrium_solidification_result_properties():
+@select_database("alzn_mey.tdb")
+def test_equilibrium_solidification_result_properties(load_database):
     """Test that SolidificationResult objects produced by equilibrium have the required properties."""
     # Required properties are that the shape of the output arrays are matching
     # NOTE: final phase amounts are not tested because they are not guaranteed
     # to be 0.0 or 1.0 in the same way as in the Scheil simulations.
 
-    dbf = Database(os.path.join(os.path.dirname(__file__), 'alzn_mey.tdb'))
+    dbf = load_database()
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
@@ -156,9 +176,10 @@ def test_equilibrium_solidification_result_properties():
     sol_res.to_dataframe(include_zero_phases=False)
 
 
-def test_equilibrium_solidification_custom_properties():
+@select_database("alzn_mey.tdb")
+def test_equilibrium_solidification_custom_properties(load_database):
     """Test that SolidificationResult objects produced by equilibrium solidification calculations with custom outputs have the right shape."""
-    dbf = Database(os.path.join(os.path.dirname(__file__), 'alzn_mey.tdb'))
+    dbf = load_database()
     comps = ['AL', 'ZN', 'VA']
     phases = sorted(dbf.phases.keys())
 
