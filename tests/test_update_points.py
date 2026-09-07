@@ -4,19 +4,14 @@ from scheil.simulate import _update_points
 from fixtures import select_database, load_database
 
 
-def _setup(dbf):
-    """Return a point-equilibrium Workspace and matching empty points/dof dicts."""
-    wks = Workspace(dbf, ['AL', 'ZN', 'VA'], ['LIQUID', 'FCC_A1', 'HCP_A3'],
-                    {v.T: 700, v.P: 101325, v.N: 1, v.X('ZN'): 0.3})
-    dof_dict = {ph: list(map(len, mod.constituents)) for ph, mod in wks.models.items()}
-    points_dict = {ph: np.empty((0, sum(dof))) for ph, dof in dof_dict.items()}
-    return wks, points_dict, dof_dict
-
-
 @select_database("alzn_mey.tdb")
 def test_update_points_appends_equilibrium_site_fractions(load_database):
     """The point appended by _update_points must be the equilibrium site fractions, not the state variables."""
-    wks, points_dict, dof_dict = _setup(load_database())
+    dbf = load_database()
+    wks = Workspace(dbf, ['AL', 'ZN', 'VA'], ['LIQUID', 'FCC_A1', 'HCP_A3'], {v.T: 700, v.P: 101325, v.N: 1, v.X('ZN'): 0.3})
+    dof_dict = {ph: list(map(len, mod.constituents)) for ph, mod in wks.models.items()}
+    points_dict = {ph: np.empty((0, sum(dof))) for ph, dof in dof_dict.items()}
+
     # Single-phase FCC_A1 region for this condition
     assert [cs.phase_record.phase_name for cs in wks.get_composition_sets()] == ['FCC_A1']
 
@@ -33,7 +28,11 @@ def test_update_points_appends_equilibrium_site_fractions(load_database):
 @select_database("alzn_mey.tdb")
 def test_update_points_local_samples_are_valid_site_fractions(load_database):
     """Locally sampled points must be valid site fractions and include the equilibrium point itself."""
-    wks, points_dict, dof_dict = _setup(load_database())
+    dbf = load_database()
+    wks = Workspace(dbf, ['AL', 'ZN', 'VA'], ['LIQUID', 'FCC_A1', 'HCP_A3'], {v.T: 700, v.P: 101325, v.N: 1, v.X('ZN'): 0.3})
+    dof_dict = {ph: list(map(len, mod.constituents)) for ph, mod in wks.models.items()}
+    points_dict = {ph: np.empty((0, sum(dof))) for ph, dof in dof_dict.items()}
+
 
     _update_points(wks, points_dict, dof_dict, local_pdens=20)
 
