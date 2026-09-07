@@ -1,10 +1,6 @@
-=========
-Changelog
-=========
-
-Unreleased
-==========
-* Bug fix for adaptive sampling: ``_update_points`` was appending the state variables (N, P, T) instead of the equilibrium site fractions since the Workspace integration in 0.3.0, so locally sampled points were not centered on the equilibrium constitution.
+=============
+Release Notes
+=============
 
 0.3.0 (2025-11-03)
 ==================
