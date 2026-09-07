@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Unreleased
+==========
+* Bug fix for adaptive sampling: ``_update_points`` was appending the state variables (N, P, T) instead of the equilibrium site fractions since the Workspace integration in 0.3.0, so locally sampled points were not centered on the equilibrium constitution.
+
 0.3.0 (2025-11-03)
 ==================
 * Better support for the PyCalphad Workspace API, which allows for requesting custom Workspace property outputs for both Scheil and equilibrium solidification. Note that these may require post-processing to use meaningfully. (:issue:`39`)
