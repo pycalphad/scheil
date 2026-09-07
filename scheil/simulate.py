@@ -51,7 +51,6 @@ def _update_points(wks, points_dict, dof_dict, local_pdens=0, verbose=False):
             if verbose:
                 print(f'Adding points to {phase_name}. ', end='')
             dof = dof_dict[phase_name]
-            # compset.dof is laid out as [state variables..., site fractions...]
             num_statevars = compset.phase_record.num_statevars
             eq_pts = np.asarray(compset.dof[num_statevars:num_statevars + sum(dof)]).reshape(1, -1)
             if local_pdens > 0:
