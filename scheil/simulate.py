@@ -26,6 +26,24 @@ def is_converged(wks):
     return False
 
 
+_NUDGE_RELATIVE = 1e-6
+_NUDGE_RNG = np.random.default_rng(42)
+
+def _nudge_site_fractions(site_fracs, dof):
+    """Return site fractions perturbed by a small relative amount and renormalized within each sublattice.
+
+    Fixes an issue where having an added point match a composition condition
+    exactly causes PyCalphad's hyperplane() routine to fail to converge.
+    """
+    nudged = site_fracs * (1 + _NUDGE_RELATIVE * _NUDGE_RNG.standard_normal(site_fracs.shape))
+    start = 0
+    for num_constituents in dof:
+        end = start + num_constituents
+        nudged[:, start:end] /= nudged[:, start:end].sum(axis=1, keepdims=True)
+        start = end
+    return nudged
+
+
 def _update_points(wks, points_dict, dof_dict, local_pdens=0, verbose=False):
     """
     Update the points_dict by appending new points.
@@ -53,6 +71,7 @@ def _update_points(wks, points_dict, dof_dict, local_pdens=0, verbose=False):
             dof = dof_dict[phase_name]
             num_statevars = compset.phase_record.num_statevars
             eq_pts = np.asarray(compset.dof[num_statevars:num_statevars + sum(dof)]).reshape(1, -1)
+            eq_pts = _nudge_site_fractions(eq_pts, dof)
             if local_pdens > 0:
                 points_dict[phase_name] = np.concatenate([pts, local_sample(eq_pts, dof, pdens=local_pdens)], axis=0)
             else:
@@ -213,7 +232,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
         if not np.isnan(wks.get("GM")):
             last_converged_wks = wks.copy()
         if adaptive:
-            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=10)
 
         ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
         eq_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
@@ -425,7 +444,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
         if adaptive:
             # Update the points dictionary with local samples around the equilibrium site fractions
-            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+            _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=10)
         ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
         _update_phase_compositions(phase_compositions, wks, ordering_phase_name_remap)
         stable_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
@@ -458,7 +477,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                         print(f"Convergence failure at T={conds[v.T]} X={comp_conds} ")
                 if adaptive:
                     # Update the points dictionary with local samples around the equilibrium site fractions
-                    _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+                    _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=10)
                 # Check if liquid is present in this binary search step
                 bin_search_stable_phases = set(phase_name for phase_name, multiplicity in wks._detect_phase_multiplicity().items() if multiplicity > 0)
                 if liquid_phase_name in bin_search_stable_phases:
@@ -480,7 +499,7 @@ def simulate_equilibrium_solidification(dbf, comps, phases, composition,
                 print(f"Finished binary search at T={conds[v.T]} with phases={found_phases} and {phase_amounts_str}")
             if adaptive:
                 # Update the points dictionary with local samples around the equilibrium site fractions
-                _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=100)
+                _update_points(wks, eq_kwargs['calc_opts']['points'], dof_dict, verbose=verbose, local_pdens=10)
             # Recalculate ordering remap for the final converged workspace after binary search
             ordering_phase_name_remap = _wks_ordering_rename_map(wks, ordering_records)
             # Add custom outputs for the final converged point
