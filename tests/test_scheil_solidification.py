@@ -1,9 +1,74 @@
 import json
 import numpy as np
 import pytest
-from pycalphad import variables as v
+from pycalphad import Database, variables as v
 from scheil import simulate_scheil_solidification, simulate_equilibrium_solidification, SolidificationResult
 from fixtures import select_database, load_database
+
+
+def test_scheil_solidification_matches_exact_solution_for_pure_solids():
+    """Scheil solidification with pure-element solids and an ideal liquid should match the exact solution at every step"""
+    entropy_of_fusion = 10.0
+    melting_temperatures = {'A': 1000.0, 'B': 900.0, 'C': 850.0}
+    solid_phases = {'A': 'ALPHA', 'B': 'BETA', 'C': 'GAMMA'}
+    tdb_str = """
+    ELEMENT A BLANK 0 0 0 !
+    ELEMENT B BLANK 0 0 0 !
+    ELEMENT C BLANK 0 0 0 !
+    TYPE_DEFINITION % SEQ * !
+    PHASE LIQUID %  1 1 !
+    CONSTITUENT LIQUID :A,B,C: !
+    PARAMETER G(LIQUID,A;0) 1 0; 10000 N !
+    PARAMETER G(LIQUID,B;0) 1 0; 10000 N !
+    PARAMETER G(LIQUID,C;0) 1 0; 10000 N !
+    """
+    for el, phase_name in solid_phases.items():
+        tdb_str += f"""
+    PHASE {phase_name} %  1 1 !
+    CONSTITUENT {phase_name} :{el}: !
+    PARAMETER G({phase_name},{el};0) 1 {entropy_of_fusion}*T-{entropy_of_fusion * melting_temperatures[el]}; 10000 N !
+    """
+    dbf = Database(tdb_str)
+    x0 = {'A': 0.6, 'B': 0.25, 'C': 0.15}
+
+    def saturated_liquid(el, T):
+        return np.exp(entropy_of_fusion * (T - melting_temperatures[el]) / (float(v.R) * T))
+
+    def exact_scheil(T):
+        forming, fraction_liquid, x_liquid = [], 1.0, dict(x0)
+        if saturated_liquid('A', T) < x0['A']:
+            forming = ['ALPHA']
+            fraction_liquid = (1 - x0['A']) / (1 - saturated_liquid('A', T))
+            x_liquid = {'A': saturated_liquid('A', T), 'B': x0['B'] / fraction_liquid, 'C': x0['C'] / fraction_liquid}
+            if x_liquid['B'] > saturated_liquid('B', T):
+                forming = ['ALPHA', 'BETA']
+                fraction_liquid = x0['C'] / (1 - saturated_liquid('A', T) - saturated_liquid('B', T))
+                x_liquid = {'A': saturated_liquid('A', T), 'B': saturated_liquid('B', T), 'C': x0['C'] / fraction_liquid}
+        assert x_liquid['C'] < saturated_liquid('C', T)
+        solid_amounts = {solid_phases[el]: x0[el] - fraction_liquid * x_liquid[el] for el in x0}
+        return forming, fraction_liquid, x_liquid, solid_amounts
+
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'B', 'C'], ['ALPHA', 'BETA', 'GAMMA', 'LIQUID'], {v.X('B'): x0['B'], v.X('C'): x0['C']}, 710, step_temperature=5)
+
+    # skip the initial liquid and the final eutectic point
+    for k in range(1, len(sol_res.temperatures) - 1):
+        forming, fraction_liquid, x_liquid, solid_amounts = exact_scheil(sol_res.temperatures[k])
+        assert [phase_name for phase_name in solid_phases.values() if sol_res.phase_amounts[phase_name][k] > 0] == forming
+        assert np.isclose(sol_res.fraction_liquid[k], fraction_liquid, atol=1e-6)
+        for el in x0:
+            assert np.isclose(sol_res.x_liquid[el][k], x_liquid[el], atol=1e-6)
+        for phase_name, amount in solid_amounts.items():
+            assert np.isclose(sol_res.cum_phase_amounts[phase_name][k], amount, atol=1e-6)
+        for el, phase_name in solid_phases.items():
+            if phase_name in forming:
+                assert np.isclose(sol_res.phase_compositions[phase_name][el][k], 1.0)
+
+    # the ternary eutectic is between the last two temperatures
+    assert sum(saturated_liquid(el, sol_res.temperatures[-2]) for el in x0) > 1
+    assert sum(saturated_liquid(el, sol_res.temperatures[-1]) for el in x0) < 1
+    assert sol_res.fraction_solid[-1] == 1.0
+    for el, phase_name in solid_phases.items():
+        assert np.isclose(sol_res.cum_phase_amounts[phase_name][-1], x0[el], atol=1e-6)
 
 @select_database("sl_chen.tdb")
 def test_scheil_solidification_raises_without_initial_liquid(load_database):

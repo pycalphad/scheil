@@ -288,7 +288,7 @@ def simulate_scheil_solidification(dbf, comps, phases, composition,
                 phase_amounts[ord_aware_phase_name] = np.full(num_steps, 0.0).tolist()
             np_tieline = float(wks.get(f"NP({phase_name})"))
             found_phase_amounts.append((phase_name, np_tieline))
-            delta_fraction_solid = (1 - current_fraction_solid) * np_tieline
+            delta_fraction_solid = (1 - float(fraction_solid[-1])) * np_tieline
             current_fraction_solid += delta_fraction_solid
             phase_amounts[ord_aware_phase_name].append(delta_fraction_solid)
         stable_phases = set(multiplicity_aware_stable_phases) - set(ordering_phase_name_remap.keys()) | set(ordering_phase_name_remap.values())

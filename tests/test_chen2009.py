@@ -176,3 +176,27 @@ def test_ternary_A_B_C(load_database):
     # Check that the compositions are resonably close as well, within 1%
     assert np.isclose(sol_res.x_liquid['B'][idx_last_alpha], 0.583, atol=0.03)
     assert np.isclose(sol_res.x_liquid['C'][idx_last_alpha], 0.059, atol=0.03)
+
+
+@select_database("sl_chen.tdb")
+def test_ternary_A_B_C_conserves_mass(load_database):
+    """Mass should be conserved at every step, including the ALPHA + BETA monovariant"""
+    dbf = load_database()
+    comp = {v.X('B'): 0.25, v.X('C'): 0.1}
+    start = 800  # Kelvin
+    step = 5
+
+    sol_res = simulate_scheil_solidification(dbf, ['A', 'B', 'C'], ['ALPHA', 'BETA', 'LIQUID'], comp, start, step_temperature=step, stop=1e-8)
+    assert sol_res.converged
+
+    phase_amnts = sol_res.phase_amounts
+    assert np.any((np.array(phase_amnts['ALPHA']) > 0) & (np.array(phase_amnts['BETA']) > 0))
+
+    fraction_liquid = np.array(sol_res.fraction_liquid)
+    for comp_name in ['B', 'C']:
+        overall_amount = fraction_liquid * np.array(sol_res.x_liquid[comp_name])
+        for phase_name, amnts in phase_amnts.items():
+            # NaN where the phase did not form
+            overall_amount += np.cumsum(np.nan_to_num(np.array(amnts) * np.array(sol_res.phase_compositions[phase_name][comp_name])))
+        # the initial point has no liquid composition
+        assert np.allclose(overall_amount[1:], comp[v.X(comp_name)], atol=1e-6)
