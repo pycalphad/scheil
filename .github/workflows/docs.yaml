@@ -11,6 +11,7 @@ jobs:
           fetch-depth: 0  # fetch the entire repo history, required to guarantee versioneer will pick up the tags
       - uses: astral-sh/setup-uv@v7
         with:
+          python-version: '3.13'
           enable-cache: true
       # Build HTML and LaTeX docs
       # Treat all warnings as errors and "keep-going" to collect all warnings
